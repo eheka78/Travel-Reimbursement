@@ -1,0 +1,35 @@
+CREATE DATABASE travel_reimbursement;
+USE travel_reimbursement;
+
+CREATE TABLE users (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(50) NOT NULL,
+  password VARCHAR(100),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+// INSERT INTO users (name, password) VALUES ('admin', 'admin');
+
+
+CREATE TABLE trips (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  title VARCHAR(100) NOT NULL,
+  start_date DATE,
+  end_date DATE,
+  created_at TIMESMP DEFAULT CURRENT_TIMESTAMP
+);
+ALTER TABLE trips ADD UNIQUE (title);
+ALTER TABLE trips ADD COLUMN description TEXT;
+
+
+CREATE TABLE trip_members (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  trip_id INT NOT NULL,
+  user_id INT NOT NULL,
+  role ENUM('owner', 'member') DEFAULT 'member',  -- 여행 만든 사람 구분용
+  joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+  FOREIGN KEY (trip_id) REFERENCES trips(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+
+  UNIQUE KEY unique_trip_user (trip_id, user_id) -- 중복 방지
+);

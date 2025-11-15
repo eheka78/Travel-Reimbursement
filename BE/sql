@@ -33,3 +33,38 @@ CREATE TABLE trip_members (
 
   UNIQUE KEY unique_trip_user (trip_id, user_id) -- 중복 방지
 );
+
+
+-- 여행 지출 테이블
+CREATE TABLE IF NOT EXISTS expenses ( 
+  id INT AUTO_INCREMENT PRIMARY KEY, 
+  trip_id INT NOT NULL, 
+  paid_by INT NOT NULL, 
+  amount DECIMAL(10,2) NOT NULL, 
+  description TEXT, 
+  category ENUM(
+    '숙박', 
+    '식사', 
+    '교통',
+    '액티비티',  
+    '쇼핑',  
+    '팁',  
+    '보험',  
+    '기타'
+  ) DEFAULT '기타',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
+  FOREIGN KEY (trip_id) REFERENCES trips(id) ON DELETE CASCADE, 
+  FOREIGN KEY (paid_by) REFERENCES users(id) ON DELETE CASCADE 
+);
+
+
+-- 지출 참여자별 부담액 테이블
+CREATE TABLE IF NOT EXISTS expense_shares ( 
+  id INT AUTO_INCREMENT PRIMARY KEY, 
+  expense_id INT NOT NULL, 
+  user_id INT NOT NULL, 
+  share DECIMAL(10,2) NOT NULL, 
+  FOREIGN KEY (expense_id) REFERENCES expenses(id) ON DELETE CASCADE, 
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE, 
+  UNIQUE KEY unique_expense_user (expense_id, user_id) 
+);

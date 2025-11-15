@@ -34,7 +34,7 @@ export default function Home({ navigation }) {
 
     
     const registerTrip = async () => {
-        console.log(title, startDate, endDate, user.id);
+        console.log("registerTrip: ", title, startDate, endDate, user.id);
         try {
             const res = await api.post("/trips", {
                 title,
@@ -147,7 +147,7 @@ export default function Home({ navigation }) {
 
                     <Button
                         title="등록하기"
-                        onPress={joinTrip}
+                        onPress={registerTrip}
                     />
                 </View>
 

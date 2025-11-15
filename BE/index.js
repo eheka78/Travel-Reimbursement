@@ -1,15 +1,15 @@
 import express from "express";
-import mysql from "mysql2";
+import mysql from "mysql2/promise"; // promise 버전으로 변경
 import cors from "cors";
 import dotenv from "dotenv";
 
 dotenv.config();
 const app = express();
-
 app.use(cors());
 app.use(express.json());
 
-const db = mysql.createConnection({
+// MySQL 연결
+const db = await mysql.createConnection({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
@@ -17,134 +17,362 @@ const db = mysql.createConnection({
   port: 3306
 });
 
-db.connect((err) => {
-  if (err) console.error("❌ MySQL 연결 실패:", err);
-  else console.log("✅ MySQL 연결 성공");
-});
 
+console.log("✅ MySQL 연결 성공");
+
+
+// ------------------------
 // 테스트용 API
+// ------------------------
 app.get("/", (req, res) => {
   res.send("API 서버 정상 작동 중!");
 });
 
+
+// ------------------------
 // 로그인 API
-app.post("/login", (req, res) => {
+// ------------------------
+app.post("/login", async (req, res) => {
   const { studentId, password } = req.body;
-
-  const query = "SELECT * FROM users WHERE name = ? AND password = ?";
-  db.query(query, [studentId, password], (err, results) => {
-    if (err) return res.status(500).json({ error: err.message });
-
+  try {
+    const [results] = await db.query(
+      "SELECT * FROM users WHERE name = ? AND password = ?",
+      [studentId, password]
+    );
     if (results.length > 0) {
       res.json({ success: true, user: results[0] });
     } else {
       res.status(401).json({ success: false, message: "로그인 실패: 학번 또는 비밀번호 확인" });
     }
-  });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
+
+// ------------------------
 // 여행 등록 API
-app.post("/trips", (req, res) => {
+// ------------------------
+app.post("/trips", async (req, res) => {
   const { title, start_date, end_date, user_id } = req.body;
   if (!title) return res.status(400).json({ message: "여행 제목은 필수입니다." });
 
-  const tripQuery = "INSERT INTO trips (title, start_date, end_date) VALUES (?, ?, ?)";
+  try {
+    const [result] = await db.query(
+      "INSERT INTO trips (title, start_date, end_date) VALUES (?, ?, ?)",
+      [title, start_date, end_date]
+    );
+    const tripId = result.insertId;
 
-  db.query(tripQuery, [title, start_date, end_date], (err, results) => {
-    if (err) {
-      if (err.code === "ER_DUP_ENTRY") {
-        return res.status(409).json({ message: "이미 존재하는 여행 이름입니다." });
-      }
-      return res.status(500).json({ message: err.message });
+    await db.query(
+      "INSERT INTO trip_members (trip_id, user_id, role) VALUES (?, ?, 'owner')",
+      [tripId, user_id]
+    );
+
+    res.status(201).json({ message: "여행 등록 성공!", tripId, ownerId: user_id });
+  } catch (err) {
+    if (err.code === "ER_DUP_ENTRY") {
+      return res.status(409).json({ message: "이미 존재하는 여행 이름입니다." });
     }
-
-    const tripId = results.insertId;
-
-    const memberQuery = "INSERT INTO trip_members (trip_id, user_id, role) VALUES (?, ?, 'owner')";
-    db.query(memberQuery, [tripId, user_id], (err2) => {
-      if (err2) return res.status(500).json({ message: err2.message });
-      res.status(201).json({ message: "여행 등록 성공!", tripId, ownerId: user_id });
-    });
-  });
-});
-
-
-// 기존 여행에 들어가기
-app.post("/trips/join", (req, res) => {
-  const { trip_name, user_id } = req.body;
-
-  if (!trip_name || !user_id) {
-    return res.status(400).json({ message: "trip_name과 user_id가 필요합니다." });
+    res.status(500).json({ message: err.message });
   }
-  console.log(req);
-  // 여행 이름으로 trip id 찾기
-  const findTripQuery = "SELECT id FROM trips WHERE title = ?";
-  db.query(findTripQuery, [trip_name], (err, results) => {
-    if (err) return res.status(500).json({ message: err.message });
-    if (results.length === 0) return res.status(404).json({ message: "해당 여행을 찾을 수 없습니다." });
-
-    const tripId = results[0].id;
-    console.log(tripId);
-    // trip_members에 추가
-    const insertMemberQuery = "INSERT INTO trip_members (trip_id, user_id) VALUES (?, ?)";
-    db.query(insertMemberQuery, [tripId, user_id], (err2) => {
-      if (err2) {
-        // 중복 참여 시
-        if (err2.code === "ER_DUP_ENTRY") {
-          return res.status(400).json({ message: "이미 참여 중인 여행입니다." });
-        }
-        return res.status(500).json({ message: err2.message });
-      }
-
-      res.status(201).json({ message: "여행 참여 성공!", tripId });
-    });
-  });
 });
 
 
+// ------------------------
+// 기존 여행 참여
+// ------------------------
+app.post("/trips/join", async (req, res) => {
+  const { trip_name, user_id } = req.body;
+  if (!trip_name || !user_id) return res.status(400).json({ message: "trip_name과 user_id가 필요합니다." });
+
+  try {
+    const [trips] = await db.query("SELECT id FROM trips WHERE title = ?", [trip_name]);
+    if (trips.length === 0) return res.status(404).json({ message: "해당 여행을 찾을 수 없습니다." });
+
+    const tripId = trips[0].id;
+
+    await db.query(
+      "INSERT INTO trip_members (trip_id, user_id) VALUES (?, ?)",
+      [tripId, user_id]
+    );
+
+    res.status(201).json({ message: "여행 참여 성공!", tripId });
+  } catch (err) {
+    if (err.code === "ER_DUP_ENTRY") {
+      return res.status(400).json({ message: "이미 참여 중인 여행입니다." });
+    }
+    res.status(500).json({ message: err.message });
+  }
+});
+
+
+// ------------------------
 // 내 여행 목록 조회
-app.get("/my-trips/:userId", (req, res) => {
+// ------------------------
+app.get("/my-trips/:userId", async (req, res) => {
   const userId = req.params.userId;
-
-  const query = `
-    SELECT t.id, t.title, t.start_date, t.end_date, t.created_at, tm.role
-    FROM trips t
-    JOIN trip_members tm ON t.id = tm.trip_id
-    WHERE tm.user_id = ?
-    ORDER BY t.start_date ASC
-  `;
-
-  db.query(query, [userId], (err, results) => {
-    if (err) return res.status(500).json({ message: err.message });
-    
-    console.log("내 여행 목록 조회", results);
+  try {
+    const [results] = await db.query(
+      `SELECT *
+       FROM trips t
+       JOIN trip_members tm ON t.id = tm.trip_id
+       WHERE tm.user_id = ?
+       ORDER BY t.start_date ASC`,
+      [userId]
+    );
     res.status(200).json({ trips: results });
-  });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
 });
 
 
-// 여행의 멤버 조회
+// ------------------------
+// 여행 멤버 조회
+// ------------------------
 app.get("/trips/:tripId/members", async (req, res) => {
   const { tripId } = req.params;
-
-  const query = 
+  try {
+    const [results] = await db.query(
       `SELECT u.id, u.name, tm.role, tm.joined_at
        FROM trip_members tm
        JOIN users u ON tm.user_id = u.id
-       WHERE tm.trip_id = ?`;
-
-    db.query(query, [tripId], (err, results) => {
-    if (err) return res.status(500).json({ message: err.message });
-    
-    console.log("여행 멤버 목록 조회", results);
-    res.status(200).json({ trips: results });
-  });
+       WHERE tm.trip_id = ?`,
+      [tripId]
+    );
+    res.status(200).json({ members: results });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
 });
 
 
-app.listen(3000, () => console.log("Server running on port 3000"));
+// ------------------------
+// 소비 내역 저장 API
+// ------------------------
+app.post("/trips/:tripId/expenses", async (req, res) => {
+  const { tripId } = req.params;
+  const { paid_by, amount, description, category, participants, shares } = req.body;
+
+  try {
+    await db.beginTransaction();
+
+    // 1. expenses 테이블에 추가
+    const [expenseResult] = await db.query(
+      `INSERT INTO expenses (trip_id, paid_by, amount, description, category)
+       VALUES (?, ?, ?, ?, ?)`,
+      [tripId, paid_by, amount, description, category]
+    );
+
+    const expenseId = expenseResult.insertId;
+
+    // 2. shares 입력
+    if (shares && shares.length > 0) {
+      for (const s of shares) {
+        await db.query(
+          `INSERT INTO expense_shares (expense_id, user_id, share)
+           VALUES (?, ?, ?)`,
+          [expenseId, s.user_id, s.share]
+        );
+      }
+    } else if (participants && participants.length > 0) {
+      const perPerson = Number((amount / participants.length).toFixed(2));
+      let remaining = amount - perPerson * (participants.length - 1);
+      remaining = Number(remaining.toFixed(2));
+
+      for (let i = 0; i < participants.length; i++) {
+        const userId = participants[i];
+        const share = (i === participants.length - 1) ? remaining : perPerson;
+
+        await db.query(
+          `INSERT INTO expense_shares (expense_id, user_id, share)
+           VALUES (?, ?, ?)`,
+          [expenseId, userId, share]
+        );
+      }
+    } else {
+      throw new Error("participants 또는 shares 값이 필요합니다.");
+    }
+
+    await db.commit();
+    res.json({ message: "지출이 성공적으로 저장되었습니다.", expenseId });
+  } catch (err) {
+    await db.rollback();
+    res.status(500).json({ error: err.message });
+  }
+});
 
 
-app.listen(process.env.PORT, () => {
-  console.log(`🚀 Server running on port ${process.env.PORT}`);
+// ------------------------
+// 여행 멤버별 대시보드 API (총액 + 차액)
+// ------------------------
+app.get("/trips/:tripId/dashboard", async (req, res) => {
+  const { tripId } = req.params;
+
+  try {
+    // 각 멤버별 총액 계산
+    const [rows] = await db.query(
+      `SELECT
+         u.id AS user_id,
+         u.name,
+         IFNULL(paid.total_paid, 0) AS paid_total,
+         IFNULL(shared.total_share, 0) AS share_total,
+         (IFNULL(paid.total_paid, 0) - IFNULL(shared.total_share, 0)) AS balance
+       FROM trip_members tm
+       JOIN users u ON tm.user_id = u.id
+       LEFT JOIN (
+         SELECT paid_by, SUM(amount) AS total_paid
+         FROM expenses
+         WHERE trip_id = ?
+         GROUP BY paid_by
+       ) paid ON paid.paid_by = u.id
+       LEFT JOIN (
+         SELECT es.user_id, SUM(es.share) AS total_share
+         FROM expense_shares es
+         JOIN expenses e ON es.expense_id = e.id
+         WHERE e.trip_id = ?
+         GROUP BY es.user_id
+       ) shared ON shared.user_id = u.id
+       WHERE tm.trip_id = ?`,
+      [tripId, tripId, tripId]
+    );
+
+    res.json({ members: rows });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "대시보드 로드 중 오류 발생" });
+  }
+});
+
+
+// ------------------------
+// 여행 지출 세부 내역 전체 조회 API
+// ------------------------
+app.get("/trips/:tripId/expenses", async (req, res) => {
+  const { tripId } = req.params;
+
+  try {
+    // 1) 여행 지출 목록
+    const [expenses] = await db.query(
+      `SELECT 
+         e.id AS expense_id,
+         e.description,
+         e.amount,
+         e.category,
+         e.paid_by,
+         u.name AS paid_by_name,
+         e.created_at
+       FROM expenses e
+       JOIN users u ON e.paid_by = u.id
+       WHERE e.trip_id = ?
+       ORDER BY e.created_at DESC`,
+      [tripId]
+    );
+
+    if (expenses.length === 0) return res.json({ expenses: [] });
+
+    // 2) 각 지출별 참여자 부담액
+    const expenseIds = expenses.map(e => e.expense_id);
+    const [shares] = await db.query(
+      `SELECT 
+         es.expense_id,
+         es.user_id,
+         u.name AS user_name,
+         es.share
+       FROM expense_shares es
+       JOIN users u ON es.user_id = u.id
+       WHERE es.expense_id IN (?)
+       ORDER BY es.expense_id, es.user_id`,
+      [expenseIds]
+    );
+
+    // 3) expenses에 shares 합치기
+    const expenseMap = expenses.map(exp => {
+      return {
+        ...exp,
+        shares: shares.filter(s => s.expense_id === exp.expense_id)
+      };
+    });
+
+    res.json({ expenses: expenseMap });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "지출 세부 내역 조회 중 오류 발생" });
+  }
+});
+
+
+// ------------------------
+// 지출 내역 저장 API
+// ------------------------
+app.post("/trips/:trip_id/expenses", async (req, res) => {
+
+  try {
+    const { trip_id } = req.params;
+    const { paid_by, amount, description, category, shares } = req.body;
+
+    if (!paid_by || !amount || !shares || shares.length === 0) {
+      return res.status(400).json({ error: "필수 항목 누락" });
+    }
+
+    // 1️⃣ expenses 저장
+    const [expenseResult] = await db.query(
+      `INSERT INTO expenses (trip_id, paid_by, amount, description, category)
+       VALUES (?, ?, ?, ?, ?)`,
+      [trip_id, paid_by, amount, description, category]
+    );
+
+    const expenseId = expenseResult.insertId;
+
+    // 2️⃣ shares 저장
+    for (const share of shares) {
+      await db.query(
+        `INSERT INTO expense_shares (expense_id, user_id, share)
+         VALUES (?, ?, ?)`,
+        [expenseId, share.user_id, share.share]
+      );
+    }
+
+    res.json({ message: "지출 등록 완료!", expense_id: expenseId });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "등록 실패", detail: err });
+  }
+});
+
+
+// 지출 삭제
+app.delete('/trips/expenses/:expense_id', async (req, res) => {
+    const { expense_id } = req.params;
+
+    try {
+        // 1. expense_shares 삭제
+        await db.query('DELETE FROM expense_shares WHERE expense_id = ?', [expense_id]);
+
+        // 2. expenses 삭제
+        const [result] = await db.query(
+            'DELETE FROM expenses WHERE id = ?',
+            [expense_id]
+        );
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: '삭제할 지출이 없습니다.' });
+        }
+
+        res.json({ message: '지출과 관련 부담액 삭제 완료' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: '서버 오류', error: err.message });
+    }
+});
+
+
+// ------------------------
+// 서버 실행
+// ------------------------
+app.listen(process.env.PORT || 3000, () => {
+  console.log(`🚀 Server running on port ${process.env.PORT || 3000}`);
 });

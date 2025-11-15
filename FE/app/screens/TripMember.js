@@ -1,64 +1,57 @@
 import React, { useEffect, useState } from "react";
-import { Button, FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import api from "../../api";
-import { useNavigation } from "@react-navigation/native";
-import { useAuth } from "../context/AuthContext";
 import { formatDateTime2 } from './../utils/FormatDateTime2';
 
 const TripMember = ({ route, navigation }) => {
     const [loading, setLoading] = useState(true);
-    console.log("TripMember", route.params.trip);
-    // tripSetting {"created_at": "2025-11-12T19:29:18.000Z", "end_date": "2025-11-14T15:00:00.000Z", "id": 3, "role": "owner", "start_date": "2025-11-13T15:00:00.000Z", "title": "Test1"}
     const [members, setMembers] = useState([]);
 
-    const fetchMember = async () => {
-        try {
-            const res = await api.get(`/trips/${route.params.trip.id}/members`);
-            
-            console.log("여행 멤버 목록:", res.data.trips);
+    const trip = route.params.trip;
+    console.log("TripMember", trip);
 
-            setMembers(res.data.trips);
+    const fetchMember = async () => {
+        if (!trip || !trip.trip_id) return;
+
+        try {
+            const res = await api.get(`/trips/${trip.trip_id}/members`);
+            // 백엔드에서 members 배열로 반환한다고 가정
+            console.log("여행 멤버 목록:", res.data.members);
+            setMembers(res.data.members || []);
         } catch (err) {
             console.error("여행 멤버 목록 가져오기 실패:", err.response?.data || err.message);
+            setMembers([]);
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        if(!route.params.trip) return; 
-
         fetchMember();
-    }, [route.params.trip]);
+    }, [trip]);
 
-    
-    if (loading) return <Text>로딩 중...</Text>;
+    if (loading) return <Text style={styles.message}>로딩 중...</Text>;
+    if (!members || members.length === 0) return <Text style={styles.message}>참여 중인 여행이 없습니다.</Text>;
 
     return (
-        <SafeAreaView edges={["top", 'bottom']} style={{ flex: 1 }}>
+        <SafeAreaView edges={["top", "bottom"]} style={{ flex: 1 }}>
             <KeyboardAvoidingView
-                style={styles.loginContainer}
+                style={styles.container}
                 behavior={Platform.OS === "ios" ? "padding" : "height"}
             >
-                {loading ? (
-                    <Text>로딩 중...</Text>
-                ) : members.length === 0 ? (
-                    <Text>참여 중인 여행이 없습니다.</Text>
-                ) : (
-                    <FlatList
-                        data={members}
-                        keyExtractor={(item) => item.id.toString()}
-                        renderItem={({ item }) => (
-                            <View style={{ marginVertical: 5, padding: 10, borderWidth: 1, borderRadius: 5 }}>
-                                <Text style={{ fontWeight: "bold" }}>{item.id} {item.name}</Text>
-                                <Text>역할: {item.role}</Text>
-                                <Text>{formatDateTime2(item.joined_at)}</Text>
-                            </View>
-                        )}
-                        contentContainerStyle={{ paddingBottom: 20 }}
-                    />
-                )}
+                <FlatList
+                    data={members}
+                    keyExtractor={(item) => item.id.toString()}
+                    renderItem={({ item }) => (
+                        <View style={styles.memberCard}>
+                            <Text style={styles.memberName}>{item.id} {item.name}</Text>
+                            <Text>역할: {item.role}</Text>
+                            <Text>가입일: {formatDateTime2(item.joined_at)}</Text>
+                        </View>
+                    )}
+                    contentContainerStyle={{ paddingBottom: 20 }}
+                />
             </KeyboardAvoidingView>
         </SafeAreaView>
     );
@@ -67,9 +60,27 @@ const TripMember = ({ route, navigation }) => {
 export default TripMember;
 
 const styles = StyleSheet.create({
-  loginContainer: { flex: 1, flexDirection: "column", paddingHorizontal: 50, alignItems: "center", justifyContent: "center" },
-  loginInputView: { borderWidth: 1, borderColor: "#ddd", padding: 22, alignItems: "center" },
-  textInput: { width: 272, height: 45, borderWidth: 1, borderColor: "#ddd", borderRadius: 8, paddingHorizontal: 12, marginVertical: 15 },
-  loginBtn: { backgroundColor: "#215294", width: 272, paddingVertical: 10, borderRadius: 8, alignItems: "center" },
-  loginText: { color: "white", fontSize: 16 },
+    container: {
+        flex: 1,
+        flexDirection: "column",
+        paddingHorizontal: 20,
+        alignItems: "center",
+        justifyContent: "flex-start",
+    },
+    memberCard: {
+        marginVertical: 5,
+        padding: 10,
+        borderWidth: 1,
+        borderRadius: 5,
+        width: "100%",
+    },
+    memberName: {
+        fontWeight: "bold",
+        marginBottom: 4,
+    },
+    message: {
+        marginTop: 20,
+        textAlign: "center",
+        fontSize: 16,
+    },
 });

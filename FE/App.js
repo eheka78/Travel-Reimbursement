@@ -8,6 +8,9 @@ import Login from "./app/screens/Login";
 import Trip from "./app/screens/Trip";
 import TripSetting from "./app/screens/TripSetting";
 import TripMember from "./app/screens/TripMember";
+import AccountBook from "./app/screens/AccountBook";
+import AddExpense from "./app/screens/AddExpense";
+import ExpenseDetail from "./app/screens/ExpenseDetail";
 
 const Stack = createNativeStackNavigator();
 
@@ -21,6 +24,9 @@ export default function App() {
           <Stack.Screen name="Trip" component={Trip} />
           <Stack.Screen name="TripSetting" component={TripSetting} />
           <Stack.Screen name="TripMember" component={TripMember} />
+          <Stack.Screen name="AccountBook" component={AccountBook} />
+          <Stack.Screen name="AddExpense" component={AddExpense} />
+          <Stack.Screen name="ExpenseDetail" component={ExpenseDetail} />
         </Stack.Navigator>
       </NavigationContainer>
     </AuthProvider>

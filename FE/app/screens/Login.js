@@ -6,6 +6,7 @@ import { useNavigation } from "@react-navigation/native";
 import { useAuth } from "../context/AuthContext"; // 추가
 
 const Login = () => {
+  console.log("Login");
   const navigation = useNavigation();
   const { setIsLoggedIn, setUser } = useAuth(); // 추가
   const [studentId, setStudentId] = useState("");

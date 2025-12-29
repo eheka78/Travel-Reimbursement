@@ -1,55 +1,17 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, Pressable, TextInput, Button, Platform, FlatList, ScrollView } from "react-native";
+import { View, Text, Pressable, TextInput, Button, Platform, FlatList, ScrollView, StyleSheet } from "react-native";
 import { useAuth } from "../context/AuthContext";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import api from "../../api";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useNavigation } from "@react-navigation/native";
-import { formatDateTime } from "../utils/FormatDateTime";
-import { formatDateTime2 } from "../utils/FormatDateTime2";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { colors } from "../constant/colors";
+import { FormatDateKST } from "../utils/FormatDateKST";
 
 export default function Home({ navigation }) {
     const [loading, setLoading] = useState(true);
 
     const { isLoggedIn, user } = useAuth();
 
-    const [enterTrip, setEnterTrip] = useState("");
-
-    const [title, setTitle] = useState("");
-    const [startDate, setStartDate] = useState(new Date());
-    const [endDate, setEndDate] = useState(new Date());
-
-    const [showStartPicker, setShowStartPicker] = useState(false);
-    const [showEndPicker, setShowEndPicker] = useState(false);
-
-    const onChangeStart = (event, selectedDate) => {
-        setShowStartPicker(Platform.OS === "ios"); // iOS는 picker 유지
-        if (selectedDate) setStartDate(selectedDate);
-    };
-
-    const onChangeEnd = (event, selectedDate) => {
-        setShowEndPicker(Platform.OS === "ios");
-        if (selectedDate) setEndDate(selectedDate);
-    };
-
-    
-    const registerTrip = async () => {
-        console.log("registerTrip: ", title, startDate, endDate, user.id);
-        try {
-            const res = await api.post("/trips", {
-                title,
-                start_date: formatDateTime(startDate),
-                end_date: formatDateTime(endDate),
-                user_id: user.id
-            });
-
-            await fetchMyTrips();
-            console.log("등록 성공:", res.data);
-        } catch (err) {
-            console.error("등록 실패:", err.response?.data || err.message);
-        }
-    };
-    
     const [trips, setTrips] = useState([]);
 
     const fetchMyTrips = async () => {
@@ -65,114 +27,53 @@ export default function Home({ navigation }) {
     };
 
     useEffect(() => {
-        if(!user) return;
+        if (!user) return;
 
         console.log(user.id);
         fetchMyTrips();
     }, [user]);
 
-
-    const joinTrip = async () => {
-        console.log("joinTrip: ", enterTrip, user.id);
+    const logout = async () => {
         try {
-            const res = await api.post("/trips/join", {
-                trip_name: enterTrip,
-                user_id: user.id
-            });
+            await AsyncStorage.removeItem("travelReimbutsementUserId");
+            await AsyncStorage.removeItem("travelReimbutsementUserPwd");
 
-            console.log("참여 성공:", res.data);
-        } catch (err) {
-            console.error("참여 실패:", err.response?.data || err.message);
+            navigation.navigate("Login");
+        } catch (e) {
+            console.error("로그아웃 실패:", e);
         }
-        
-        fetchMyTrips();
     };
-
-
 
 
     if (loading) return <Text>로딩 중...</Text>;
 
     return (
-        <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1 }}>
-            <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-                <Text>{isLoggedIn ? `환영합니다, ${user.name}` : "로그인이 필요합니다"}</Text>
-                {!isLoggedIn && (
+        <SafeAreaProvider>
+            <SafeAreaView edges={['bottom', 'top']} style={styles.container}>
+                {/* 헤더 */}
+                <View style={styles.header}>
+                    <Text style={styles.welcome}>
+                        {isLoggedIn ? `환영합니다, ${user.name} 👋` : "로그인이 필요합니다"}
+                    </Text>
+
                     <Pressable
-                        onPress={() => navigation.navigate("Login")}
-                        style={{ marginTop: 20, padding: 10, backgroundColor: "#215294", borderRadius: 5 }}
+                        onPress={logout}
+                        style={({ pressed }) => [
+                            styles.logoutBtn,
+                            pressed && { opacity: 0.6 },
+                        ]}
                     >
-                        <Text style={{ color: "white" }}>로그인 화면으로 이동</Text>
+                        <Text style={styles.logoutText}>로그아웃</Text>
                     </Pressable>
-                )}
-
-                <View style={{ marginTop: 20 }}>
-                    <Text>여행 등록</Text>
-                    <TextInput
-                        placeholder="여행 이름을 입력해 주세요"
-                        style={{ borderWidth: 1, padding: 8, width: 200, marginVertical: 10 }}
-                        onChangeText={setTitle}
-                    />
-
-                    {/* 시작 날짜 선택 */}
-                    <Button
-                        title="시작 날짜 선택"
-                        onPress={() => setShowStartPicker(true)}
-                    />
-                    {showStartPicker && (
-                        <DateTimePicker
-                            value={startDate}
-                            mode="date"
-                            display="default"
-                            onChange={onChangeStart}
-                        />
-                    )}
-
-                    {/* 종료 날짜 선택 */}
-                    <Button
-                        title="종료 날짜 선택"
-                        onPress={() => setShowEndPicker(true)} 
-                    />
-                    {showEndPicker && (
-                        <DateTimePicker
-                            value={endDate}
-                            mode="date"
-                            display="default"
-                            onChange={onChangeEnd}
-                        />
-                    )}
-
-                    <Text style={{ marginTop: 10 }}>시작: {startDate.toDateString()}</Text>
-                    <Text>종료: {endDate.toDateString()}</Text>
-
-                    <Button
-                        title="등록하기"
-                        onPress={registerTrip}
-                    />
                 </View>
 
 
-                <View>
-                    <Text>여행 추가</Text>
-                    <TextInput
-                        placeholder="여행 이름을 입력해 주세요"
-                        style={{ borderWidth: 1, padding: 8, width: 200, marginVertical: 10 }}
-                        onChangeText={setEnterTrip}
-                    />
+                {/* 여행 리스트 */}
+                <View style={styles.listContainer}>
+                    <Text style={styles.sectionTitle}>내 여행 목록</Text>
 
-                    <Button
-                        title="등록하기"
-                        onPress={joinTrip}
-                    />
-                </View>
-
-                {/* 내 여행 목록 */}
-                <View style={{ marginTop: 30, width: "90%", flex: 1 }}>
-                    <Text style={{ fontSize: 16, fontWeight: "bold", marginBottom: 10 }}>내 여행 목록</Text>
-                    {loading ? (
-                        <Text>로딩 중...</Text>
-                    ) : trips.length === 0 ? (
-                        <Text>참여 중인 여행이 없습니다.</Text>
+                    {trips.length === 0 ? (
+                        <Text style={styles.emptyText}>참여 중인 여행이 없습니다.</Text>
                     ) : (
                         <FlatList
                             data={trips}
@@ -180,21 +81,132 @@ export default function Home({ navigation }) {
                             renderItem={({ item }) => (
                                 <Pressable
                                     onPress={() => navigation.navigate("Trip", { trip: item })}
+                                    style={({ pressed }) => [
+                                        styles.card,
+                                        pressed && { opacity: 0.8 },
+                                    ]}
                                 >
-                                    <View style={{ marginVertical: 5, padding: 10, borderWidth: 1, borderRadius: 5 }}>
-                                        <Text style={{ fontWeight: "bold" }}>{item.title}</Text>
-                                        <Text>시작: {formatDateTime2(item.start_date)}</Text>
-                                        <Text>종료: {formatDateTime2(item.end_date)}</Text>
-                                        <Text>내 역할: {item.role}</Text>
+                                    <Text style={styles.cardTitle}>{item.title}</Text>
+
+                                    <View style={styles.dateRow}>
+                                        <Text style={styles.dateText}>
+                                            📅 {FormatDateKST(item.start_date)} ~ {FormatDateKST(item.end_date)}
+                                        </Text>
                                     </View>
+
+                                    <Text style={styles.roleText}>내 역할: {item.role}</Text>
                                 </Pressable>
                             )}
-                            contentContainerStyle={{ paddingBottom: 20 }}
                         />
                     )}
                 </View>
 
-            </View>
-        </SafeAreaView>
+                {/* 플로팅 + 버튼 */}
+                <Pressable
+                    style={styles.fab}
+                    onPress={() => navigation.navigate("AddTrip")}
+                >
+                    <Text style={styles.fabText}>＋</Text>
+                </Pressable>
+                <Pressable
+                    style={[styles.fab, { bottom: 120, }]}
+                    onPress={() => fetchMyTrips()}
+                >
+                    <Text style={styles.fabText}>⟳</Text>
+                </Pressable>
+            </SafeAreaView>
+        </SafeAreaProvider>
     );
+
 }
+
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: "#F6F7FB",
+    },
+    header: {
+        padding: 20,
+        paddingVertical: 40,
+    },
+    welcome: {
+        fontSize: 18,
+        fontWeight: "600",
+    },
+    logoutBtn: {
+        position: "absolute",
+        right: 20,
+        top: 40,
+        paddingVertical: 6,
+        paddingHorizontal: 12,
+        borderRadius: 20,
+        backgroundColor: "#EEF1F6",
+    },
+    logoutText: {
+        fontSize: 13,
+        color: "#555",
+        fontWeight: "500",
+    },
+    listContainer: {
+        flex: 1,
+    },
+    sectionTitle: {        
+        fontSize: 16,
+        fontWeight: "bold",
+        marginBottom: 10,
+        marginHorizontal: 20,
+    },
+    emptyText: {
+        textAlign: "center",
+        color: "#999",
+        marginTop: 40,
+    },
+    card: {
+        backgroundColor: "white",
+        padding: 15,
+        borderRadius: 12,
+        marginBottom: 12,
+        marginHorizontal: 20,
+        elevation: 2, // android shadow
+        shadowColor: "#000", // ios shadow
+        shadowOpacity: 0.1,
+        shadowRadius: 5,
+    },
+    cardTitle: {
+        fontSize: 16,
+        fontWeight: "bold",
+        marginBottom: 6,
+    },
+    dateRow: {
+        marginBottom: 4,
+    },
+    dateText: {
+        color: "#555",
+        fontSize: 13,
+    },
+    roleText: {
+        marginTop: 6,
+        fontSize: 13,
+        color: colors.point,
+        fontWeight: "500",
+    },
+    fab: {
+        position: "absolute",
+        right: 20,
+        bottom: 60,
+        width: 45,
+        height: 45,
+        borderRadius: 28,
+        backgroundColor: colors.point,
+        justifyContent: "center",
+        alignItems: "center",
+        elevation: 4,
+    },
+    fabText: {
+        color: "white",
+        fontSize: 25,
+        fontWeight: "bold",
+        marginBottom: 2,
+    },
+});

@@ -1,0 +1,5 @@
+// BE 실행
+node index.js
+
+// FE 실행
+npm start

@@ -13,45 +13,68 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import api from "../../api";
 import { FormatDateTimeKST } from "../utils/FormatDateTimeKST";
 
-const AddExpense = ({ route, navigation }) => {
-	const { trip } = route.params;
+
+const EditExpense = ({ route, navigation }) => {
+	console.log('*****************************');
+	console.log( route.params);
+	const expense = route.params.expense;
+	const tripId = route.params.tripId;
+    const fetchTripAccountStatistics = route.params?.fetchTripAccountStatistics;
+
+	console.log(expense);
 
 	const [loading, setLoading] = useState(true);
-	const [description, setDescription] = useState("");
-	const [amount, setAmount] = useState("");
-	const [category, setCategory] = useState("기타");
+	const [description, setDescription] = useState(expense.description || "");
+	const [amount, setAmount] = useState(expense.amount?.toString() || "");
+	const [category, setCategory] = useState(expense.category || "기타");
 	const [members, setMembers] = useState([]);
-	const [selectedPaidBy, setSelectedPaidBy] = useState(null);
+	const [selectedPaidBy, setSelectedPaidBy] = useState(expense.paid_by || null);
 	const [shares, setShares] = useState({});
-	const [splitMode, setSplitMode] = useState("엔빵");  // 엔빵, 직접 입력
+	const [splitMode, setSplitMode] = useState("엔빵");
 	const [remaining, setRemaining] = useState(0);
 
-	const [date, setDate] = useState(new Date());
+	const [date, setDate] = useState(new Date(expense.created_at));
 	const [showPicker, setShowPicker] = useState({ mode: null });
 
 	useEffect(() => {
-		console.log(date);
-	}, [date]);
-
-	useEffect(() => {
 		const fetchMembers = async () => {
-			const res = await api.get(`/trips/${trip.trip_id}/members`);
-			setMembers(res.data.members);
-			if (res.data.members.length > 0) {
-				setSelectedPaidBy(res.data.members[0].id);
-				const init = {};
-				res.data.members.forEach((m) => (init[m.id] = "0"));
-				setShares(init);
-			}
-			setLoading(false);
-		};
-		fetchMembers();
-	}, []);
+			try {
+				console.log(tripId);
+				const res = await api.get(`/trips/${tripId}/members`);
+				const membersData = res.data.members;
+				setMembers(membersData);
+				console.log(res.data.members);
 
+				if (membersData.length > 0) {
+					// expense.paid_by가 members 안에 있는지 확인
+					const initialPaidBy = membersData.some(m => m.id === expense.paid_by)
+						? expense.paid_by
+						: membersData[0].id;
+
+					setSelectedPaidBy(initialPaidBy);
+
+					const initShares = {};
+					membersData.forEach((m) => {
+						const shareObj = expense.shares?.find(s => s.user_id === m.id);
+						initShares[m.id] = shareObj ? shareObj.share.toString() : "0";
+					});
+					setShares(initShares);
+				}
+			} catch (err) {
+				console.error(err);
+			} finally {
+				setLoading(false);
+			}
+		};
+		console.log("#####################");
+		fetchMembers();
+		console.log("#####################");
+	}, [expense]);
+
+
+	// 엔빵, 직접입력 계산 로직 그대로
 	useEffect(() => {
-		if (splitMode !== "엔빵" || !amount || members.length === 0) {
-			return;
-		}
+		if (splitMode !== "엔빵" || !amount || members.length === 0) return;
 		const split = (Number(amount) / members.length).toFixed(2);
 		const updated = {};
 		members.forEach((m) => (updated[m.id] = split));
@@ -60,8 +83,7 @@ const AddExpense = ({ route, navigation }) => {
 	}, [amount, members, splitMode]);
 
 	useEffect(() => {
-		if (splitMode !== "직접 입력") { return; }
-
+		if (splitMode !== "직접 입력") return;
 		const total = Object.values(shares).reduce(
 			(sum, v) => sum + Number(v || 0),
 			0
@@ -69,7 +91,9 @@ const AddExpense = ({ route, navigation }) => {
 		setRemaining(Number(amount || 0) - total);
 	}, [shares, amount, splitMode]);
 
-	const handleSubmit = async () => {
+
+	// 수정 API 호출
+	const handleEdit = async () => {
 		if (!description || !amount || !selectedPaidBy) {
 			alert("설명, 금액, 지불자를 입력해주세요.");
 			return;
@@ -84,17 +108,23 @@ const AddExpense = ({ route, navigation }) => {
 			share: Number(shares[m.id] || 0),
 		}));
 
-		await api.post(`/trips/${trip.trip_id}/expenses`, {
-			paid_by: selectedPaidBy,
-			amount: Number(amount),
-			description,
-			category,
-			shares: sharesArray,
-			created_at: FormatDateTimeKST(date),
-		});
+		try {
+			const res = await api.put(`/trips/${tripId}/expenses/${expense.expense_id}`, {
+				paid_by: selectedPaidBy,
+				amount: Number(amount),
+				description,
+				category,
+				shares: sharesArray,
+				created_at: FormatDateTimeKST(date),
+			});
+			console.log(res.data);
 
-		route.params.fetchTripAccountStatistics();
-		navigation.pop();
+			alert("지출 내역이 수정되었습니다.");
+            route.params.fetchTripAccountStatistics?.();
+			navigation.pop();
+		} catch (err) {
+			alert(err.response?.data?.message || "수정 실패");
+		}
 	};
 
 	if (loading) return <Text style={{ padding: 20 }}>로딩 중...</Text>;
@@ -177,16 +207,19 @@ const AddExpense = ({ route, navigation }) => {
 					{/* 지불자 */}
 					<View style={styles.card}>
 						<Text style={styles.label}>지불자</Text>
-						<View style={styles.pickerBox}>
-							<Picker
-								selectedValue={selectedPaidBy}
-								onValueChange={setSelectedPaidBy}
-							>
-								{members.map((m) => (
-									<Picker.Item key={m.id} label={m.name} value={m.id} />
-								))}
-							</Picker>
-						</View>
+						{members.length > 0 && selectedPaidBy && (
+							<View style={styles.pickerBox}>
+								<Picker
+									selectedValue={selectedPaidBy}
+									onValueChange={setSelectedPaidBy}
+								>
+									{members.map((m) => (
+										<Picker.Item key={m.id} label={m.name} value={m.id} />
+									))}
+								</Picker>
+							</View>
+						)}
+
 					</View>
 
 					{/* 분배 */}
@@ -200,36 +233,10 @@ const AddExpense = ({ route, navigation }) => {
 						</View>
 
 						{splitMode === "직접 입력" && (
-							<View style={{
-								flexDirection: "row",
-								alignItems: "center",
-								justifyContent: "space-between",
-								marginTop: 10
-							}}>
-								<Text style={styles.remaining}>
-									남은 금액: {remaining.toFixed(2)} 원
-								</Text>
-
-								<Pressable
-									style={[styles.subButton, {
-										flex: 0,
-										borderRadius: 20,
-										paddingVertical: 5,
-										paddingHorizontal: 10
-									}]}
-									onPress={() => {
-										const cleared = {};
-										members.forEach((m) => cleared[m.id] = "");
-										setShares(cleared);
-										setRemaining(Number(amount || 0));
-									}}
-								>
-									<Text style={{ fontWeight: "700", fontSize: 13 }}>⟳ 초기화</Text>
-								</Pressable>
-							</View>
+							<Text style={styles.remaining}>
+								남은 금액: {remaining.toFixed(2)} 원
+							</Text>
 						)}
-
-
 
 						{members.map((m) => (
 							<View key={m.id} style={styles.memberRow}>
@@ -247,8 +254,8 @@ const AddExpense = ({ route, navigation }) => {
 					</View>
 
 					{/* 등록 버튼 */}
-					<Pressable style={styles.submitButton} onPress={handleSubmit}>
-						<Text style={styles.submitText}>사용 내역 추가하기</Text>
+					<Pressable style={styles.submitButton} onPress={handleEdit}>
+						<Text style={styles.submitText}>수정하기</Text>
 					</Pressable>
 
 				</ScrollView>
@@ -257,7 +264,7 @@ const AddExpense = ({ route, navigation }) => {
 	);
 };
 
-export default AddExpense;
+export default EditExpense;
 
 const styles = StyleSheet.create({
 	container: {

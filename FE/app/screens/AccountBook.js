@@ -1,141 +1,381 @@
-import React, { useEffect, useState } from "react";
-import { Button, FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import React, { useEffect, useState, useMemo, useRef } from "react";
+import {
+    FlatList,
+    Pressable,
+    StyleSheet,
+    Text,
+    View,
+} from "react-native";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import api from "../../api";
+import { shortenName } from "../utils/shortenName";
+import { colors } from "../constant/colors";
 
 const AccountBook = ({ route, navigation }) => {
     const [loading, setLoading] = useState(true);
     const [dashboard, setDashboard] = useState([]);
-    const [expensesDetail, seExpensesDetail] = useState([]);
+    const [expensesDetail, setExpensesDetail] = useState([]);
+    const [showScrollTop, setShowScrollTop] = useState(false);
+
+    const listRef = useRef(null);
+    const tripId = route.params.trip.trip_id;
 
     const fetchTripAccountStatistics = async () => {
         try {
-            const res = await api.get(`/trips/${route.params.trip.trip_id}/dashboard`);
-            console.log("대시보드:", res.data.members);
+            const res = await api.get(`/trips/${tripId}/dashboard`);
             setDashboard(res.data.members);
         } catch (err) {
-            console.error("대시보드 가져오기 실패:", err.response?.data || err.message);
-        } finally{
+            console.error(err);
+        } finally {
             fetchTripAccountDetail();
         }
     };
 
     const fetchTripAccountDetail = async () => {
         try {
-            const res = await api.get(`/trips/${route.params.trip.trip_id}/expenses`);
-            console.log("세부 지출 내역:", res.data.expenses);
-            seExpensesDetail(res.data.expenses);
+            const res = await api.get(`/trips/${tripId}/expenses`);
+            setExpensesDetail(res.data.expenses);
         } catch (err) {
-            console.error("세부 지출 내역:", err.response?.data || err.message);
+            console.error(err);
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        if(!route.params) return; 
-        
-        fetchTripAccountStatistics();
-    }, [route.params]);
+        console.log("ExpensesDetail: ", expensesDetail);
+    }, [expensesDetail]);
 
-    if (loading) return <Text>로딩 중...</Text>;
+    useEffect(() => {
+        fetchTripAccountStatistics();
+    }, []);
+
+    const totalExpense = useMemo(
+        () => dashboard.reduce((acc, m) => acc + Number(m.paid_total), 0),
+        [dashboard]
+    );
+
+    const avgExpense =
+        dashboard.length > 0 ? (totalExpense / dashboard.length).toFixed(2) : 0;
+
+    if (loading) {
+        return <Text style={{ textAlign: "center", marginTop: 40 }}>로딩 중...</Text>;
+    }
 
     return (
-        <SafeAreaView style={{ flex: 1 }}>
-            <KeyboardAvoidingView
-                style={styles.container}
-                behavior={Platform.OS === "ios" ? "padding" : "height"}
-            >   
-                <Button
-                    title="사용 내역 추가하기" 
-                    onPress={() => navigation.navigate("AddExpense", { trip: route.params.trip, fetchTripAccountStatistics: fetchTripAccountStatistics })}
-                />
+        <SafeAreaProvider>
+            <SafeAreaView edges={["top", "bottom"]} style={styles.safe}>
+                <FlatList
+                    ref={listRef}
+                    onScroll={(e) => {
+                        setShowScrollTop(e.nativeEvent.contentOffset.y > 120);
+                    }}
+                    scrollEventThrottle={16}
+                    contentContainerStyle={{ paddingBottom: 140 }}
+                    ListHeaderComponent={
+                        <>
+                            {/* 사용 내역 추가 */}
+                            <Pressable
+                                style={({ pressed }) => [
+                                    styles.addButton,
+                                    pressed && { opacity: 0.85 },
+                                ]}
+                                onPress={() =>
+                                    navigation.navigate("AddExpense", {
+                                        trip: route.params.trip,
+                                        fetchTripAccountStatistics,
+                                    })
+                                }
+                            >
+                                <Text style={styles.addButtonText}>
+                                    + 사용 내역 추가하기
+                                </Text>
+                            </Pressable>
 
-                {dashboard.length === 0 ? (
-                    <Text>참여 중인 여행이 없습니다.</Text>
-                ) : (
-                    <>
-                        <View><Text>총 지출: ${dashboard.reduce((acc, member) => acc + Number(member.paid_total), 0)}</Text></View>
-                        <View><Text>참여자 수: ${dashboard.length}</Text></View>
-                        <View><Text>평균 지출: ${(dashboard.reduce((acc, member) => acc + Number(member.paid_total), 0)/3).toFixed(2)}</Text></View>
-                        
-                        <View>
-                            {/* 헤더 */}
-                            <View style={[styles.row, styles.header]}>
-                                <Text style={[styles.cell, { flex: 2 }]}>이름</Text>
-                                <Text style={styles.cell}>지불</Text>
-                                <Text style={styles.cell}>부담</Text>
-                                <Text style={styles.cell}>차액</Text>
+                            {/* 요약 */}
+                            <View style={styles.summaryCard}>
+                                <View style={styles.summaryRow}>
+                                    <Text style={styles.summaryLabel}>총 지출</Text>
+                                    <Text style={styles.summaryValue}>
+                                        ${totalExpense}
+                                    </Text>
+                                </View>
+                                <View style={styles.summaryRow}>
+                                    <Text style={styles.summaryLabel}>평균 지출</Text>
+                                    <Text style={styles.summaryValue}>
+                                        ${avgExpense}
+                                    </Text>
+                                </View>
                             </View>
 
-                            {/* 데이터 */}
-                            {dashboard.map((item) => (
-                                <View key={item.user_id} style={styles.row}>
-                                <Text style={[styles.cell, { flex: 2 }]}>{item.name}</Text>
-                                <Text style={styles.cell}>${item.paid_total}</Text>
-                                <Text style={styles.cell}>${item.share_total}</Text>
-                                <Text style={styles.cell}>${item.balance}</Text>
+                            {/* 정산 테이블 */}
+                            <View style={styles.tableWrapper}>
+                                <View style={styles.tableHeader}>
+                                    <Text style={[styles.cell, styles.nameCell]}>이름</Text>
+                                    <Text style={styles.cellRight}>지불</Text>
+                                    <Text style={styles.cellRight}>부담</Text>
+                                    <Text style={styles.cellRight}>차액</Text>
                                 </View>
-                            ))}
-                        </View>
 
+                                {dashboard.map((item) => (
+                                    <View key={item.user_id} style={styles.tableRow}>
+                                        <Text style={[styles.cell, styles.nameCell]}>
+                                            {item.name}
+                                        </Text>
+                                        <Text style={styles.cellRight}>
+                                            ${item.paid_total}
+                                        </Text>
+                                        <Text style={styles.cellRight}>
+                                            ${item.share_total}
+                                        </Text>
+                                        <Text
+                                            style={[
+                                                styles.cellRight,
+                                                item.balance >= 0
+                                                    ? styles.balancePositive
+                                                    : styles.balanceNegative,
+                                            ]}
+                                        >
+                                            ${item.balance}
+                                        </Text>
+                                    </View>
+                                ))}
+                            </View>
 
-                        <FlatList
-                            data={expensesDetail}
-                            keyExtractor={(item) => String(item.expense_id)}
-                            renderItem={({ item }) => (
-                                <Pressable
-                                    onPress={() => navigation.navigate("ExpenseDetail", { item: item, fetchTripAccountStatistics: fetchTripAccountStatistics })}
+                            <Text style={styles.sectionTitle}>지출 내역</Text>
+                        </>
+                    }
+                    data={expensesDetail}
+                    keyExtractor={(item) => String(item.expense_id)}
+                    renderItem={({ item }) => (
+                        <Pressable
+                            style={styles.card}
+                            onPress={() =>
+                                navigation.navigate("ExpenseDetail", {
+                                    item,
+                                    tripId,
+                                    fetchTripAccountStatistics,
+                                })
+                            }
+                        >
+                            <View style={styles.cardHeader}>
+                                <Text
+                                    style={styles.cardTitle}
+                                    numberOfLines={1}
+                                    ellipsizeMode="tail"
                                 >
-                                    <View style={styles.card}>
-                                    <Text style={styles.title}>{item.expense_id}. {item.description}</Text>
-                                    <Text>총 금액: ${item.amount} | 지불자: {item.paid_by_name}</Text>
+                                    {item.description}
+                                </Text>
+                                <Text style={styles.cardAmount}>
+                                    ${item.amount}
+                                </Text>
+                            </View>
 
-                                    {/* 참여자별 부담액 */}
-                                    <View style={styles.sharesHeader}>
-                                        <Text style={{ flex: 1, fontWeight: "bold" }}>부담액: </Text>
-                                    </View>
-                                    {item.shares.map((s, idx) => (
-                                        <View key={idx} style={styles.shareRow}>
-                                        <Text style={{ flex: 1 }}>{s.user_name} | ${s.share}</Text>
-                                        </View>
-                                    ))}
-                                    </View>
-                                </Pressable>
-                            )}
-                            contentContainerStyle={{ padding: 10 }}
-                        />
+                            <Text style={styles.cardMeta}>
+                                지불자 · {item.paid_by_name}
+                            </Text>
 
-                    </>
+                            <View style={styles.shareBox}>
+                                {item.shares.map((s, idx) => (
+                                    <View key={idx} style={styles.shareChip}>
+                                        <Text style={styles.shareChipText}>
+                                            {shortenName(s.user_name)} ${s.share}
+                                        </Text>
+                                    </View>
+                                ))}
+                            </View>
+                        </Pressable>
+                    )}
+                />
+
+                <Pressable
+                    style={[styles.fab]}
+                    onPress={() => fetchTripAccountStatistics()}
+                >
+                    <Text style={styles.fabText}>⟳</Text>
+                </Pressable>
+                {showScrollTop && (
+                    <Pressable
+                        style={[styles.fab, { bottom: 120, }]}
+                        onPress={() =>
+                            listRef.current?.scrollToOffset({
+                                offset: 0,
+                                animated: true,
+                            })
+                        }
+                    >
+                        <Text style={styles.fabText}>↑</Text>
+                    </Pressable>
                 )}
-            </KeyboardAvoidingView>
-        </SafeAreaView>
+            </SafeAreaView>
+        </SafeAreaProvider>
     );
 };
 
 export default AccountBook;
 
+
+
 const styles = StyleSheet.create({
-    container: { 
-        flex: 1, 
-        flexDirection: "column", 
-        paddingHorizontal: 20, 
-        justifyContent: "center"  // alignItems 제거!
+    safe: {
+        flex: 1,
+        backgroundColor: "#F6F7FB",
     },
-    row: { 
-        flexDirection: "row", 
-        paddingVertical: 8, 
-        borderBottomWidth: 1, 
-        borderColor: "#ddd", 
-        alignSelf: "stretch"   // 여기 추가
+
+    addButton: {
+        marginHorizontal: 20,
+        marginTop: 16,
+        marginBottom: 24,
+        height: 52,
+        borderRadius: 16,
+        backgroundColor: colors.point2,
+        justifyContent: "center",
+        alignItems: "center",
+        elevation: 6,
     },
-    header: {
-        backgroundColor: "#f0f0f0", 
-        borderBottomWidth: 2 
+    addButtonText: {
+        color: "white",
+        fontSize: 16,
+        fontWeight: "700",
     },
-    cell: { 
-        flex: 1, 
-        textAlign: "center" 
+
+    summaryCard: {
+        marginHorizontal: 20,
+        padding: 16,
+        borderRadius: 16,
+        backgroundColor: "white",
+        marginBottom: 24,
+        gap: 10,
+    },
+    summaryRow: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+    },
+    summaryLabel: {
+        fontSize: 14,
+        color: "#555",
+    },
+    summaryValue: {
+        fontSize: 17,
+        fontWeight: "800",
+        color: colors.point2,
+    },
+
+    tableWrapper: {
+        marginHorizontal: 20,
+        borderRadius: 16,
+        backgroundColor: "white",
+        overflow: "hidden",
+        marginBottom: 28,
+    },
+    tableHeader: {
+        flexDirection: "row",
+        paddingVertical: 12,
+        backgroundColor: colors.back2,
+    },
+    tableRow: {
+        flexDirection: "row",
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderColor: colors.border,
+    },
+
+    cell: {
+        flex: 1,
+        fontSize: 13,
+    },
+    cellRight: {
+        flex: 1,
+        textAlign: "right",
+        paddingRight: 12,
+        fontSize: 13,
+    },
+    nameCell: {
+        flex: 1.4,
+        paddingLeft: 12,
+        fontWeight: "600",
+    },
+
+    balancePositive: {
+        color: colors.positive,
+        fontWeight: "700",
+    },
+    balanceNegative: {
+        color: colors.negative,
+        fontWeight: "700",
+    },
+
+    sectionTitle: {
+        fontSize: 16,
+        fontWeight: "700",
+        marginHorizontal: 20,
+        marginBottom: 12,
+    },
+
+    card: {
+        marginHorizontal: 20,
+        marginBottom: 12,
+        padding: 16,
+        borderRadius: 14,
+        backgroundColor: "white",
+        elevation: 3,
+    },
+
+    cardHeader: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        marginBottom: 6,
+    },
+    cardTitle: {
+        flex: 1,
+        fontSize: 15,
+        fontWeight: "700",
+        marginRight: 8,
+    },
+    cardAmount: {
+        fontSize: 16,
+        fontWeight: "800",
+        color: colors.point2,
+    },
+    cardMeta: {
+        fontSize: 12,
+        color: "#666",
+        marginBottom: 8,
+    },
+
+    shareBox: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: 6,
+    },
+    shareChip: {
+        backgroundColor: colors.back,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 999,
+    },
+    shareChipText: {
+        fontSize: 12,
+        fontWeight: "600",
+        color: colors.point,
+    },
+
+    fab: {
+        position: "absolute",
+        right: 20,
+        bottom: 60,
+        width: 45,
+        height: 45,
+        borderRadius: 28,
+        backgroundColor: colors.point,
+        justifyContent: "center",
+        alignItems: "center",
+        elevation: 4,
+    },
+    fabText: {
+        color: "white",
+        fontSize: 25,
+        fontWeight: "bold",
+        marginBottom: 2,
     },
 });
-

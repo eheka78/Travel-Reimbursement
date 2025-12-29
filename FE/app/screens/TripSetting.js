@@ -1,105 +1,149 @@
 import React, { useState } from "react";
-import { Button, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import api from "../../api";
-import { useNavigation } from "@react-navigation/native";
+import {
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    View,
+} from "react-native";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { colors } from "../constant/colors";
+import { FormatDateKST } from '../utils/FormatDateKST';
 import { useAuth } from "../context/AuthContext";
 
+
 const TripSetting = ({ route, navigation }) => {
-    console.log("tripSetting", route.params.trip);
-    // tripSetting {"created_at": "2025-11-12T19:29:18.000Z", "end_date": "2025-11-14T15:00:00.000Z", "id": 3, "role": "owner", "start_date": "2025-11-13T15:00:00.000Z", "title": "Test1"}
-    const { setIsLoggedIn, setUser } = useAuth(); 
+    const trip = route.params.trip;
 
-    const [title, setTitle] = useState(route.params.trip.title);
-    const [startDate, setStartDate] = useState(route.params.trip.start_date);
-    const [endDate, setEndDate] = useState(route.params.trip.end_date);
+    const [title, setTitle] = useState(trip.title);
+    const [description, setDescription] = useState(trip.description);
+    const [startDate, setStartDate] = useState(new Date(trip.start_date));
+    const [endDate, setEndDate] = useState(new Date(trip.end_date));
 
-    const [showStartPicker, setShowStartPicker] = useState(false);
-    const [showEndPicker, setShowEndPicker] = useState(false);
 
-    const onChangeStart = (event, selectedDate) => {
-        setShowStartPicker(Platform.OS === "ios"); // iOS는 picker 유지
-        if (selectedDate) setStartDate(selectedDate);
-    };
-
-    const onChangeEnd = (event, selectedDate) => {
-        setShowEndPicker(Platform.OS === "ios");
-        if (selectedDate) setEndDate(selectedDate);
-    };
-
-    const formatDateTime = (date) => {
-        const yyyy = date.getFullYear();
-        const mm = String(date.getMonth() + 1).padStart(2, "0");
-        const dd = String(date.getDate()).padStart(2, "0");
-        const hh = String(date.getHours()).padStart(2, "0");
-        const mi = String(date.getMinutes()).padStart(2, "0");
-        const ss = String(date.getSeconds()).padStart(2, "0");
-        return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
-    };
-  
     return (
-        <SafeAreaView edges={["top", 'bottom']} style={{ flex: 1 }}>
-            <KeyboardAvoidingView
-                style={styles.loginContainer}
-                behavior={Platform.OS === "ios" ? "padding" : "height"}
-            >
-                <View style={{ marginTop: 20 }}>
-                    <Text>여행 등록</Text>
-                    <TextInput
-                        placeholder="여행 이름을 입력해 주세요"
-                        style={{ borderWidth: 1, padding: 8, width: 200, marginVertical: 10 }}
-                        onChangeText={setTitle}
-                        value={title}
-                    />
+        <SafeAreaProvider>
+            <SafeAreaView edges={['bottom', 'top']} style={styles.container}>
+                <ScrollView>
+                    <KeyboardAvoidingView
+                        behavior={Platform.OS === "ios" ? "padding" : "height"}
+                    >
+                        {/* 헤더 */}
+                        <View style={styles.header}>
+                            <Text style={styles.title}>여행 설정</Text>
+                            <Text style={styles.subText}>여행 정보를 수정할 수 있어요</Text>
+                        </View>
 
-                    {/* 시작 날짜 선택 */}
-                    <Button
-                        title="시작 날짜 선택"
-                        onPress={() => setShowStartPicker(true)}
-                    />
-                    {showStartPicker && (
-                        <DateTimePicker
-                            value={startDate}
-                            mode="date"
-                            display="default"
-                            onChange={onChangeStart}
-                        />
-                    )}
+                        {/* 카드 */}
+                        <View style={styles.card}>
+                            {/* 여행 Id */}
+                            <View style={styles.row}>
+                                <Text style={styles.label}>여행 아이디</Text>
+                                <Text style={styles.value}>{trip.trip_id}</Text>
+                            </View>
 
-                    {/* 종료 날짜 선택 */}
-                    <Button
-                        title="종료 날짜 선택"
-                        onPress={() => setShowEndPicker(true)} 
-                    />
-                    {showEndPicker && (
-                        <DateTimePicker
-                            value={endDate}
-                            mode="date"
-                            display="default"
-                            onChange={onChangeEnd}
-                        />
-                    )}
+                            {/* 여행 이름 */}
+                            <View style={styles.row}>
+                                <Text style={styles.label}>여행 이름</Text>
+                                <Text style={styles.value}>{title}</Text>
+                            </View>
 
-                    <Text style={{ marginTop: 10 }}>시작: {startDate.toDateString()}</Text>
-                    <Text>종료: {endDate.toDateString()}</Text>
+                            {/* 여행 설명 */}
+                            <View style={styles.row}>
+                                <Text style={styles.label}>여행 설명</Text>
+                                <Text style={styles.value}>{description || "-"}</Text>
+                            </View>
 
-                    <Button
-                        title="수정하기"
-                       
-                    />
-                     {/*onPress={editTrip} */}  
-                </View>
-            </KeyboardAvoidingView>
-        </SafeAreaView>
+                            {/* 여행 기간 */}
+                            <View style={styles.row}>
+                                <Text style={styles.label}>여행 기간</Text>
+                                <Text style={styles.value}>📅 {FormatDateKST(startDate)} ~ {FormatDateKST(endDate)}</Text>
+                            </View>
+
+                            {/* 버튼 그룹 */}
+                            {trip.role === "owner" &&
+                                <View style={styles.buttonGroup}>
+                                    <Pressable
+                                        onPress={() => navigation.navigate("EditTripSetting", { trip })}
+                                        style={styles.editBtn}
+                                    >
+                                        <Text style={styles.buttonText}>수정하기</Text>
+                                    </Pressable>
+                                </View>
+                            }
+                        </View>
+                    </KeyboardAvoidingView>
+                </ScrollView>
+            </SafeAreaView>
+        </SafeAreaProvider>
     );
 };
 
 export default TripSetting;
 
+
 const styles = StyleSheet.create({
-  loginContainer: { flex: 1, flexDirection: "column", paddingHorizontal: 50, alignItems: "center", justifyContent: "center" },
-  loginInputView: { borderWidth: 1, borderColor: "#ddd", padding: 22, alignItems: "center" },
-  textInput: { width: 272, height: 45, borderWidth: 1, borderColor: "#ddd", borderRadius: 8, paddingHorizontal: 12, marginVertical: 15 },
-  loginBtn: { backgroundColor: "#215294", width: 272, paddingVertical: 10, borderRadius: 8, alignItems: "center" },
-  loginText: { color: "white", fontSize: 16 },
+    container: {
+        flex: 1,
+        backgroundColor: "#F6F7FB",
+    },
+    header: {
+        padding: 24,
+    },
+    title: {
+        fontSize: 22,
+        fontWeight: "bold",
+        color: colors.point,
+        marginBottom: 6,
+    },
+    subText: {
+        fontSize: 14,
+        color: "#666",
+    },
+    card: {
+        backgroundColor: "white",
+        marginHorizontal: 20,
+        marginBottom: 40,
+        padding: 24,
+        borderRadius: 16,
+        elevation: 6,
+        shadowColor: "#000",
+        shadowOpacity: 0.12,
+        shadowRadius: 12,
+    },
+    row: {
+        marginBottom: 16,
+    },
+    label: {
+        fontSize: 13,
+        color: "#888",
+        marginBottom: 4,
+        fontWeight: "500",
+    },
+    value: {
+        fontSize: 15,
+        color: "#333",
+        fontWeight: "600",
+    },
+    buttonGroup: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        marginTop: 24,
+    },
+    editBtn: {
+        flex: 1,
+        backgroundColor: colors.point,
+        paddingVertical: 14,
+        borderRadius: 12,
+        alignItems: "center",
+        marginRight: 8,
+    },
+    buttonText: {
+        color: "white",
+        fontSize: 16,
+        fontWeight: "bold",
+    },
 });

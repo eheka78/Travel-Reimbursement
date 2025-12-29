@@ -11,24 +11,32 @@ import TripMember from "./app/screens/TripMember";
 import AccountBook from "./app/screens/AccountBook";
 import AddExpense from "./app/screens/AddExpense";
 import ExpenseDetail from "./app/screens/ExpenseDetail";
+import AddTrip from "./app/screens/AddTrip";
+import EditTripSetting from './app/screens/EditTripSetting';
+import EditExpense from "./app/screens/EditExpense";
+
 
 const Stack = createNativeStackNavigator();
 
+
 export default function App() {
-  return (
-    <AuthProvider>
-      <NavigationContainer>
-        <Stack.Navigator initialRouteName="Login">
-          <Stack.Screen name="Home" component={Home} />
-          <Stack.Screen name="Login" component={Login} />
-          <Stack.Screen name="Trip" component={Trip} />
-          <Stack.Screen name="TripSetting" component={TripSetting} />
-          <Stack.Screen name="TripMember" component={TripMember} />
-          <Stack.Screen name="AccountBook" component={AccountBook} />
-          <Stack.Screen name="AddExpense" component={AddExpense} />
-          <Stack.Screen name="ExpenseDetail" component={ExpenseDetail} />
-        </Stack.Navigator>
-      </NavigationContainer>
-    </AuthProvider>
-  );
+	return (
+		<AuthProvider>
+			<NavigationContainer>
+				<Stack.Navigator initialRouteName="Login">
+					<Stack.Screen name="Home" component={Home} />
+					<Stack.Screen name="Login" component={Login} />
+					<Stack.Screen name="Trip" component={Trip} />
+					<Stack.Screen name="AddTrip" component={AddTrip} />
+					<Stack.Screen name="TripSetting" component={TripSetting} />
+					<Stack.Screen name="EditTripSetting" component={EditTripSetting} />
+					<Stack.Screen name="TripMember" component={TripMember} />
+					<Stack.Screen name="AccountBook" component={AccountBook} />
+					<Stack.Screen name="AddExpense" component={AddExpense} />
+					<Stack.Screen name="ExpenseDetail" component={ExpenseDetail} />
+					<Stack.Screen name="EditExpense" component={EditExpense} />
+				</Stack.Navigator>
+			</NavigationContainer>
+		</AuthProvider>
+	);
 }

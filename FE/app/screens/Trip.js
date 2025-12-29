@@ -1,51 +1,154 @@
-import React, { useState } from "react";
-import { Button, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import api from "../../api";
-import { useNavigation } from "@react-navigation/native";
-import { useAuth } from "../context/AuthContext";
-import { formatDateTime2 } from './../utils/FormatDateTime2';
+import React from "react";
+import {
+	View,
+	Text,
+	Pressable,
+	ScrollView,
+	StyleSheet,
+} from "react-native";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { colors } from "../constant/colors";
+import { FormatDateKST } from "../utils/FormatDateKST";
 
 const Trip = ({ route, navigation }) => {
-    const { setIsLoggedIn, setUser } = useAuth(); 
-    const trip = useState(route.params.trip);
-    
-  
-    return (
-        <SafeAreaView edges={["top", 'bottom']} style={{ flex: 1 }}>
-            <KeyboardAvoidingView
-                style={styles.Container}
-                behavior={Platform.OS === "ios" ? "padding" : "height"}
-            >
-                <ScrollView contentContainerStyle={{ width: "100%", alignItems: "center" }}>
-                    <View style={{ marginVertical: 5, padding: 10, borderWidth: 1, borderRadius: 5 }}>
-                        <Text style={{ fontWeight: "bold" }}>{trip[0].title}</Text>
-                        <Text>시작: {formatDateTime2(trip[0].start_date)}</Text>
-                        <Text>종료: {formatDateTime2(trip[0].end_date)}</Text>
-                        <Text>내 역할: {trip[0].role}</Text>
-                        <Text>설명: {trip[0].description}</Text>
-                    </View>
-                    
-                    <Button
-                        title="멤버"
-                        onPress={() => navigation.navigate("TripMember", { trip: route.params.trip })}
-                    />
-                    <Button
-                        title="가계부"
-                        onPress={() => navigation.navigate("AccountBook", { trip: route.params.trip })}
-                    />
-                    <Button
-                        title="설정하기"
-                        onPress={() => navigation.navigate("TripSetting", { trip: route.params.trip })}
-                    />
-                </ScrollView>
-            </KeyboardAvoidingView>
-        </SafeAreaView>
-    );
+	const { trip } = route.params;
+
+	return (
+		<SafeAreaProvider>
+			<SafeAreaView edges={['top', 'bottom']} style={styles.container}>
+				<ScrollView contentContainerStyle={styles.scroll}>
+					{/* 기능 버튼 */}
+					<View style={styles.menuContainer}>
+						<Pressable
+							style={styles.menuCard}
+							onPress={() => navigation.navigate("TripMember", { trip })}
+						>
+							<Text style={styles.menuIcon}>👥</Text>
+							<Text style={styles.menuText}>멤버</Text>
+						</Pressable>
+
+						<Pressable
+							style={styles.menuCard}
+							onPress={() => navigation.navigate("AccountBook", { trip })}
+						>
+							<Text style={styles.menuIcon}>💰</Text>
+							<Text style={styles.menuText}>가계부</Text>
+						</Pressable>
+
+						<Pressable
+							style={styles.menuCard}
+							onPress={() => navigation.navigate("TripSetting", { trip })}
+						>
+							<Text style={styles.menuIcon}>⚙️</Text>
+							<Text style={styles.menuText}>설정</Text>
+						</Pressable>
+					</View>
+
+
+					{/* 여행 정보 카드 */}
+					<View style={styles.infoCard}>
+						<Text style={styles.title}>{trip.title}</Text>
+
+						<View style={styles.row}>
+							<Text style={styles.label}>📅 기간</Text>
+							<Text style={styles.value}>
+								{FormatDateKST(trip.start_date)} ~ {FormatDateKST(trip.end_date)}
+							</Text>
+						</View>
+
+						<View style={styles.row}>
+							<Text style={styles.label}>👤 내 역할</Text>
+							<Text style={styles.value}>{trip.role}</Text>
+						</View>
+
+						{trip.description && (
+							<ScrollView>
+								<View style={styles.descBox}>
+									<Text style={styles.descText}>{trip.description}</Text>
+								</View>
+							</ScrollView>
+						)}
+					</View>
+				</ScrollView>
+			</SafeAreaView>
+		</SafeAreaProvider>
+	);
 };
 
 export default Trip;
 
+
 const styles = StyleSheet.create({
-  Container: { flex: 1, flexDirection: "column", paddingHorizontal: 20, alignItems: "center", justifyContent: "center" },
+	container: {
+		flex: 1,
+		backgroundColor: "#F6F7FB",
+	},
+	scroll: {
+		padding: 20,
+	},
+	infoCard: {
+		backgroundColor: "white",
+		borderRadius: 16,
+		padding: 18,
+		marginBottom: 24,
+		shadowColor: "#000",
+		shadowOpacity: 0.08,
+		shadowRadius: 6,
+		elevation: 3,
+	},
+	title: {
+		fontSize: 20,
+		fontWeight: "bold",
+		marginBottom: 12,
+	},
+	row: {
+		flexDirection: "row",
+		justifyContent: "space-between",
+		marginBottom: 6,
+	},
+	label: {
+		fontSize: 14,
+		color: "#555",
+	},
+	value: {
+		fontSize: 14,
+		fontWeight: "500",
+	},
+	descBox: {
+		marginTop: 12,
+		padding: 12,
+		backgroundColor: colors.back2,
+		borderRadius: 10,
+	},
+	descText: {
+		fontSize: 13,
+		color: "#444",
+		lineHeight: 18,
+	},
+	menuContainer: {
+		flexDirection: "row",
+		justifyContent: "space-between",
+	},
+	menuCard: {
+		flex: 1,
+		backgroundColor: "white",
+		borderRadius: 14,
+		paddingVertical: 20,
+		marginHorizontal: 5,
+		marginBottom: 20,
+		alignItems: "center",
+		shadowColor: "#000",
+		shadowOpacity: 0.06,
+		shadowRadius: 4,
+		elevation: 2,
+	},
+	menuIcon: {
+		fontSize: 24,
+		marginBottom: 6,
+	},
+	menuText: {
+		fontSize: 14,
+		fontWeight: "600",
+	},
 });
+

@@ -1,84 +1,177 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, Button, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
+import React from "react";
+import {
+    View,
+    Text,
+    StyleSheet,
+    KeyboardAvoidingView,
+    Platform,
+    Pressable,
+} from "react-native";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import api from "../../api";
-import { formatDateTime3 } from "../utils/FormatDateTime3";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { colors } from "../constant/colors";
+import { FormatDateTimeKST } from './../utils/FormatDateTimeKST';
 
 const ExpenseDetail = ({ route, navigation }) => {
-    const expense = route.params.item; // 그냥 변수로 받음
-    console.log("expense: " ,expense);
-
-
-    const formattedDateTime = formatDateTime3(expense.created_at);
+    console.log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+    console.log(route.params);
+    const expense = route.params.item;
+    const tripId = route.params.tripId;
+    const fetchTripAccountStatistics = route.params?.fetchTripAccountStatistics;
 
     const delExpense = async () => {
-        console.log("delExpense: ", expense.trip_id, expense.expense_id);
         try {
-            const res = await api.delete(`/trips/expenses/${expense.expense_id}`);
-           
-            console.log("지출 내역 삭제:", res.data);
-            route.params.fetchTripAccountStatistics();
+            await api.delete(`/trips/expenses/${expense.expense_id}`);
+
+            fetchTripAccountStatistics?.();
             navigation.pop();
         } catch (err) {
             console.error("지출 내역 삭제 에러:", err.response?.data || err.message);
-        } finally {
-            setLoading(false);
         }
     };
 
     return (
-        <SafeAreaView style={{ flex: 1 }}>
-            <KeyboardAvoidingView
-                style={styles.container}
-                behavior={Platform.OS === "ios" ? "padding" : "height"}
-            >
-                <View>
-                <Text>아이디: {expense.expense_id}</Text>
-                <Text>내용: {expense.description}</Text>
-                <Text>카테고리: {expense.category}</Text>
-                <Text>
-                    시간 날짜: {formattedDateTime.date} {formattedDateTime.time}
-                </Text>
-                <Text>총액: {expense.amount}</Text>
-                <Text>지불: {expense.paid_by} {expense.paid_by_name}</Text>
+        <SafeAreaProvider>
+            <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1 }}>
+                <KeyboardAvoidingView
+                    style={styles.container}
+                    behavior={Platform.OS === "ios" ? "padding" : "height"}
+                >
+                    {/* 카드 */}
+                    <View style={styles.card}>
+                        <InfoRow label="내용" value={expense.description} />
+                        <InfoRow label="카테고리" value={expense.category} />
+                        <InfoRow
+                            label="날짜"
+                            value={FormatDateTimeKST(expense.created_at)}
+                        />
+                        <InfoRow label="총 금액" value={`$${expense.amount}`} />
+                        <InfoRow
+                            label="지불자"
+                            value={`${expense.paid_by_name}`}
+                        />
 
-                <View style={{ marginTop: 10 }}>
-                    <Text style={{ fontWeight: "bold" }}>참여자 부담액</Text>
-                    {expense.shares.map((s, idx) => (
-                        <View key={idx} style={styles.shareRow}>
-                            <Text>{s.user_name} | ${s.share}</Text>
-                        </View>
-                    ))}
-                </View>
-                </View>
+                        <Text style={styles.sectionTitle}>참여자 부담액</Text>
 
-                <Button 
-                    title="삭제하기"
-                    onPress={delExpense}
-                />
-                <Button 
-                    title="수정하기"
-                    onPress={() => {}}
-                />
-            </KeyboardAvoidingView>
-        </SafeAreaView>
+                        {expense.shares.map((s, idx) => (
+                            <View key={idx} style={styles.shareRow}>
+                                <Text style={styles.shareName}>{s.user_name}</Text>
+                                <Text style={styles.shareAmount}>${s.share}</Text>
+                            </View>
+                        ))}
+                    </View>
+
+                    {/* 버튼 영역 */}
+                    <View style={styles.buttonArea}>
+                        <Pressable
+                            onPress={() => {
+                                navigation.navigate("EditExpense", {
+                                    expense,
+                                    tripId,
+                                    fetchTripAccountStatistics
+                                });
+                            }}
+                            style={styles.editButton}
+                        >
+                            <Text style={styles.editText}>수정하기</Text>
+                        </Pressable>
+
+                        <Pressable
+                            style={styles.deleteButton}
+                            onPress={delExpense}
+                        >
+                            <Text style={styles.deleteText}>삭제하기</Text>
+                        </Pressable>
+                    </View>
+                </KeyboardAvoidingView>
+            </SafeAreaView>
+        </SafeAreaProvider>
     );
 };
 
 export default ExpenseDetail;
 
+/* 라벨 + 값 컴포넌트 */
+const InfoRow = ({ label, value }) => (
+    <View style={styles.infoRow}>
+        <Text style={styles.label}>{label}</Text>
+        <Text style={styles.value}>{value}</Text>
+    </View>
+);
+
 
 const styles = StyleSheet.create({
-    container: { 
-        flex: 1, 
-        flexDirection: "column", 
-        paddingHorizontal: 20, 
-        justifyContent: "flex-start"  
+    container: {
+        flex: 1,
+        padding: 20,
+        justifyContent: "space-between",
     },
-    shareRow: { 
-        flexDirection: "row", 
-        paddingVertical: 4, 
-        borderBottomWidth: 1, 
-        borderColor: "#ddd" 
+    card: {
+        backgroundColor: "white",
+        borderRadius: 16,
+        padding: 20,
+        shadowColor: "#000",
+        shadowOpacity: 0.05,
+        shadowRadius: 10,
+        elevation: 3,
+    },
+    infoRow: {
+        marginBottom: 14,
+    },
+    label: {
+        fontSize: 13,
+        color: "#777",
+        marginBottom: 4,
+    },
+    value: {
+        fontSize: 16,
+        fontWeight: "600",
+        color: "#111",
+    },
+    sectionTitle: {
+        marginTop: 20,
+        marginBottom: 10,
+        fontSize: 16,
+        fontWeight: "700",
+    },
+    shareRow: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        paddingVertical: 10,
+        borderBottomWidth: 1,
+        borderColor: colors.border,
+    },
+    shareName: {
+        fontSize: 15,
+    },
+    shareAmount: {
+        fontSize: 15,
+        fontWeight: "600",
+    },
+    buttonArea: {
+        marginTop: 20,
+        gap: 10,
+    },
+    editButton: {
+        backgroundColor: "#f1f3f5",
+        padding: 16,
+        borderRadius: 14,
+        alignItems: "center",
+    },
+    editText: {
+        fontSize: 16,
+        fontWeight: "600",
+    },
+    deleteButton: {
+        backgroundColor: colors.negative,
+        padding: 16,
+        borderRadius: 14,
+        alignItems: "center",
+    },
+    deleteText: {
+        color: "white",
+        fontSize: 16,
+        fontWeight: "700",
     },
 });
+

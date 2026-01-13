@@ -16,7 +16,7 @@ import { useAuth } from "../context/AuthContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { colors } from "../constant/colors";
 
-const Login = () => {
+export default function Login() {
 	const navigation = useNavigation();
 	const { setIsLoggedIn, setUser } = useAuth();
 
@@ -131,8 +131,6 @@ const Login = () => {
 		</SafeAreaProvider>
 	);
 };
-
-export default Login;
 
 
 

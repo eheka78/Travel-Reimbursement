@@ -12,12 +12,15 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import api from "../../api";
 import { FormatDateTimeKST } from "../utils/FormatDateTimeKST";
+import ReceiptImagePicker from "../component/ReceiptImagePicker";
+import { CATEGORY } from '../constant/category';
 
-const AddExpense = ({ route, navigation }) => {
+export default function AddExpense({ route, navigation }) {
 	const { trip } = route.params;
 
 	const [loading, setLoading] = useState(true);
 	const [description, setDescription] = useState("");
+	const [memo, setMemo] = useState("");
 	const [amount, setAmount] = useState("");
 	const [category, setCategory] = useState("기타");
 	const [members, setMembers] = useState([]);
@@ -25,6 +28,8 @@ const AddExpense = ({ route, navigation }) => {
 	const [shares, setShares] = useState({});
 	const [splitMode, setSplitMode] = useState("엔빵");  // 엔빵, 직접 입력
 	const [remaining, setRemaining] = useState(0);
+
+	const [file, setFile] = useState([]);	// 영수증 이미지 저장
 
 	const [date, setDate] = useState(new Date());
 	const [showPicker, setShowPicker] = useState({ mode: null });
@@ -70,32 +75,76 @@ const AddExpense = ({ route, navigation }) => {
 	}, [shares, amount, splitMode]);
 
 	const handleSubmit = async () => {
+		console.log("==== [SUBMIT START] ====");
+
 		if (!description || !amount || !selectedPaidBy) {
 			alert("설명, 금액, 지불자를 입력해주세요.");
 			return;
 		}
+
 		if (splitMode === "직접 입력" && remaining !== 0) {
 			alert(`금액이 맞지 않습니다. 남은 금액: ${remaining}`);
 			return;
 		}
 
+		// shares 배열 생성
 		const sharesArray = members.map((m) => ({
 			user_id: m.id,
 			share: Number(shares[m.id] || 0),
 		}));
 
-		await api.post(`/trips/${trip.trip_id}/expenses`, {
-			paid_by: selectedPaidBy,
-			amount: Number(amount),
-			description,
-			category,
-			shares: sharesArray,
-			created_at: FormatDateTimeKST(date),
+		console.log("sharesArray:", sharesArray);
+
+		const formData = new FormData();
+
+		// 기본 필드
+		formData.append("paid_by", String(selectedPaidBy));
+		formData.append("amount", String(amount));
+		formData.append("description", description);
+		formData.append("memo", memo);
+		formData.append("category", category);
+		formData.append("created_at", FormatDateTimeKST(date));
+
+		// ⭐ 배열은 JSON 문자열
+		formData.append("shares", JSON.stringify(sharesArray));
+
+		// 이미지
+		file.forEach((img, i) => {
+			console.log(`[IMAGE ${i}]`, img);
+			formData.append("receipts", {
+				uri: img.uri,
+				name:
+					img.fileName ||
+					`${FormatDateTimeKST(date)}_${description}_receipt_${i}.jpg`,
+				type: img.mimeType || "image/jpeg",
+			});
 		});
 
-		route.params.fetchTripAccountStatistics();
-		navigation.pop();
+		// 🔍 FormData 내부 로그
+		console.log("---- FormData ----");
+		for (const [key, value] of formData._parts) {
+			console.log(key, value);
+		}
+		console.log("------------------");
+
+		try {
+			console.log("🚀 API REQUEST START");
+			const res = await api.post(
+				`/trips/${trip.trip_id}/expenses`,
+				formData
+			);
+
+			console.log("✅ API RESPONSE:", res.data);
+
+			route.params.fetchTripAccountStatistics();
+			navigation.goBack();
+		} catch (err) {
+			console.error("❌ API ERROR:", err.response?.data || err.message);
+			alert("지출 저장에 실패했습니다.");
+		}
 	};
+
+
 
 	if (loading) return <Text style={{ padding: 20 }}>로딩 중...</Text>;
 
@@ -164,12 +213,9 @@ const AddExpense = ({ route, navigation }) => {
 						<Text style={styles.label}>카테고리</Text>
 						<View style={styles.pickerBox}>
 							<Picker selectedValue={category} onValueChange={setCategory}>
-								<Picker.Item label="숙박" value="숙박" />
-								<Picker.Item label="식사" value="식사" />
-								<Picker.Item label="교통" value="교통" />
-								<Picker.Item label="액티비티" value="액티비티" />
-								<Picker.Item label="쇼핑" value="쇼핑" />
-								<Picker.Item label="기타" value="기타" />
+								{CATEGORY.map((cat, index) => (
+									<Picker.Item key={index} label={cat} value={cat} />
+								))}
 							</Picker>
 						</View>
 					</View>
@@ -246,6 +292,24 @@ const AddExpense = ({ route, navigation }) => {
 						))}
 					</View>
 
+					{/* 메모 */}
+					<View style={styles.card}>
+						<Text style={styles.label}>메모</Text>
+						<TextInput
+							style={styles.input}
+							value={memo}
+							onChangeText={setMemo}
+							placeholder="메모"
+						/>
+					</View>
+
+
+					{/* 영수증 이미지 */}
+					<View style={styles.card}>
+						<ReceiptImagePicker file={file} setFile={setFile} />
+					</View>
+
+
 					{/* 등록 버튼 */}
 					<Pressable style={styles.submitButton} onPress={handleSubmit}>
 						<Text style={styles.submitText}>사용 내역 추가하기</Text>
@@ -257,7 +321,6 @@ const AddExpense = ({ route, navigation }) => {
 	);
 };
 
-export default AddExpense;
 
 const styles = StyleSheet.create({
 	container: {

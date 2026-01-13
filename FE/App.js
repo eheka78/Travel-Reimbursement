@@ -14,6 +14,8 @@ import ExpenseDetail from "./app/screens/ExpenseDetail";
 import AddTrip from "./app/screens/AddTrip";
 import EditTripSetting from './app/screens/EditTripSetting';
 import EditExpense from "./app/screens/EditExpense";
+import ImageCollection from "./app/screens/ImageCollection";
+import ReceiptDetail from "./app/screens/ReceiptDetail";
 
 
 const Stack = createNativeStackNavigator();
@@ -24,13 +26,27 @@ export default function App() {
 		<AuthProvider>
 			<NavigationContainer>
 				<Stack.Navigator initialRouteName="Login">
-					<Stack.Screen name="Home" component={Home} />
-					<Stack.Screen name="Login" component={Login} />
+					<Stack.Screen
+						name="Home"
+						component={Home}
+						options={{ headerShown: false }}
+					/>
+					<Stack.Screen
+						name="Login"
+						component={Login}
+						options={{ headerShown: false }}
+					/>
 					<Stack.Screen name="Trip" component={Trip} />
 					<Stack.Screen name="AddTrip" component={AddTrip} />
 					<Stack.Screen name="TripSetting" component={TripSetting} />
 					<Stack.Screen name="EditTripSetting" component={EditTripSetting} />
 					<Stack.Screen name="TripMember" component={TripMember} />
+					<Stack.Screen name="ImageCollection" component={ImageCollection} />
+					<Stack.Screen
+						name="ReceiptDetail"
+						component={ReceiptDetail}
+						options={{ headerShown: false }}
+					/>
 					<Stack.Screen name="AccountBook" component={AccountBook} />
 					<Stack.Screen name="AddExpense" component={AddExpense} />
 					<Stack.Screen name="ExpenseDetail" component={ExpenseDetail} />

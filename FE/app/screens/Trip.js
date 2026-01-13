@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
 	View,
 	Text,
@@ -9,9 +9,31 @@ import {
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { colors } from "../constant/colors";
 import { FormatDateKST } from "../utils/FormatDateKST";
+import api from "../../api";
 
-const Trip = ({ route, navigation }) => {
+export default function Trip({ route, navigation }) {
 	const { trip } = route.params;
+
+	const [members, setMembers] = useState([]);
+
+	const fetchMember = async () => {
+		if (!trip?.trip_id) return;
+
+		try {
+			const res = await api.get(`/trips/${trip.trip_id}/members`);
+			setMembers(res.data.members || []);
+		} catch (err) {
+			console.error("여행 멤버 목록 가져오기 실패:", err.response?.data || err.message);
+			setMembers([]);
+		} finally {
+			setLoading(false);
+		}
+	};
+
+	useEffect(() => {
+		fetchMember();
+	}, [trip]);
+
 
 	return (
 		<SafeAreaProvider>
@@ -21,18 +43,18 @@ const Trip = ({ route, navigation }) => {
 					<View style={styles.menuContainer}>
 						<Pressable
 							style={styles.menuCard}
-							onPress={() => navigation.navigate("TripMember", { trip })}
-						>
-							<Text style={styles.menuIcon}>👥</Text>
-							<Text style={styles.menuText}>멤버</Text>
-						</Pressable>
-
-						<Pressable
-							style={styles.menuCard}
 							onPress={() => navigation.navigate("AccountBook", { trip })}
 						>
 							<Text style={styles.menuIcon}>💰</Text>
 							<Text style={styles.menuText}>가계부</Text>
+						</Pressable>
+
+						<Pressable
+							style={styles.menuCard}
+							onPress={() => navigation.navigate("ImageCollection", { trip })}
+						>
+							<Text style={styles.menuIcon}>📷</Text>
+							<Text style={styles.menuText}>사진</Text>
 						</Pressable>
 
 						<Pressable
@@ -61,6 +83,21 @@ const Trip = ({ route, navigation }) => {
 							<Text style={styles.value}>{trip.role}</Text>
 						</View>
 
+						<View style={[styles.row]}>
+							<Text style={styles.label}>👥 멤버</Text>
+							<View style={{ flexDirection: "row", flexWrap: "wrap", }}>
+								{members.map((member, index) => (
+									<View
+										key={index}
+										style={{ borderRadius: 20, marginLeft: 6, }}
+									>
+										<Text style={styles.value}>{member.name}</Text>
+									</View>
+								))}
+							</View>
+						</View>
+
+
 						{trip.description && (
 							<ScrollView>
 								<View style={styles.descBox}>
@@ -75,7 +112,6 @@ const Trip = ({ route, navigation }) => {
 	);
 };
 
-export default Trip;
 
 
 const styles = StyleSheet.create({
@@ -116,7 +152,8 @@ const styles = StyleSheet.create({
 	},
 	descBox: {
 		marginTop: 12,
-		padding: 12,
+		paddingVertical: 18,
+		paddingHorizontal: 15,
 		backgroundColor: colors.back2,
 		borderRadius: 10,
 	},
@@ -150,5 +187,7 @@ const styles = StyleSheet.create({
 		fontSize: 14,
 		fontWeight: "600",
 	},
+
+	// 멤버
 });
 

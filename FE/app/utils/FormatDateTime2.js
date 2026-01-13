@@ -4,7 +4,7 @@
 // 날짜만 뽑아내기
 
 export const formatDateTime2 = (date) => {
-    if(!date) return;
+    if (!date) return;
 
     const dateOnly = date.split("T")[0];
     console.log(dateOnly); // "2025-11-14"

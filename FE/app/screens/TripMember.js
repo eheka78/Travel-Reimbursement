@@ -12,11 +12,9 @@ import api from "../../api";
 import { formatDateTime2 } from "../utils/FormatDateTime2";
 import { colors } from "../constant/colors";
 
-const TripMember = ({ route }) => {
+export default function TripMember({ route }) {
     const [loading, setLoading] = useState(true);
     const [members, setMembers] = useState([]);
-
-    const trip = route.params.trip;
 
     const fetchMember = async () => {
         if (!trip?.trip_id) return;
@@ -31,6 +29,11 @@ const TripMember = ({ route }) => {
             setLoading(false);
         }
     };
+
+
+    const trip = route.params.trip;
+
+
 
     useEffect(() => {
         fetchMember();
@@ -67,7 +70,7 @@ const TripMember = ({ route }) => {
     );
 };
 
-export default TripMember;
+
 
 const styles = StyleSheet.create({
     container: {

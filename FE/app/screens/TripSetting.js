@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
     Alert,
+    FlatList,
     KeyboardAvoidingView,
     Platform,
     Pressable,
@@ -12,10 +13,9 @@ import {
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { colors } from "../constant/colors";
 import { FormatDateKST } from '../utils/FormatDateKST';
-import { useAuth } from "../context/AuthContext";
 
 
-const TripSetting = ({ route, navigation }) => {
+export default function TripSetting({ route, navigation }) {
     const trip = route.params.trip;
 
     const [title, setTitle] = useState(trip.title);
@@ -62,19 +62,32 @@ const TripSetting = ({ route, navigation }) => {
                                 <Text style={styles.label}>여행 기간</Text>
                                 <Text style={styles.value}>📅 {FormatDateKST(startDate)} ~ {FormatDateKST(endDate)}</Text>
                             </View>
-
-                            {/* 버튼 그룹 */}
-                            {trip.role === "owner" &&
-                                <View style={styles.buttonGroup}>
-                                    <Pressable
-                                        onPress={() => navigation.navigate("EditTripSetting", { trip })}
-                                        style={styles.editBtn}
-                                    >
-                                        <Text style={styles.buttonText}>수정하기</Text>
-                                    </Pressable>
-                                </View>
-                            }
                         </View>
+
+                        <View style={styles.buttonGroup}>
+                            <Pressable
+                                onPress={() => navigation.navigate("TripMember", { trip })}
+                                style={[styles.editBtn, {
+                                    backgroundColor: "white",
+                                    borderWidth: 2,
+                                    borderColor: colors.point
+                                }]}
+                            >
+                                <Text style={[styles.buttonText, { color: colors.point }]}>멤버</Text>
+                            </Pressable>
+                        </View>
+
+                        {/* 버튼 그룹 */}
+                        {trip.role === "owner" &&
+                            <View style={[styles.buttonGroup, { marginTop: 0 }]}>
+                                <Pressable
+                                    onPress={() => navigation.navigate("EditTripSetting", { trip })}
+                                    style={styles.editBtn}
+                                >
+                                    <Text style={styles.buttonText}>수정하기</Text>
+                                </Pressable>
+                            </View>
+                        }
                     </KeyboardAvoidingView>
                 </ScrollView>
             </SafeAreaView>
@@ -82,7 +95,6 @@ const TripSetting = ({ route, navigation }) => {
     );
 };
 
-export default TripSetting;
 
 
 const styles = StyleSheet.create({
@@ -106,7 +118,6 @@ const styles = StyleSheet.create({
     card: {
         backgroundColor: "white",
         marginHorizontal: 20,
-        marginBottom: 40,
         padding: 24,
         borderRadius: 16,
         elevation: 6,
@@ -131,7 +142,8 @@ const styles = StyleSheet.create({
     buttonGroup: {
         flexDirection: "row",
         justifyContent: "space-between",
-        marginTop: 24,
+        marginHorizontal: 20,
+        marginVertical: 30,
     },
     editBtn: {
         flex: 1,

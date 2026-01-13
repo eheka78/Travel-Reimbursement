@@ -1,7 +1,28 @@
 import express from "express";
 import mysql from "mysql2/promise"; // promise 버전으로 변경
 import cors from "cors";
-import dotenv from "dotenv";
+import dotenv from "dotenv"; import multer from "multer";
+import path from "path";
+
+
+// 영수증 업로드 설정
+const storage = multer.diskStorage({
+	destination: "uploads/receipts/",
+	filename: (req, file, cb) => {
+		const ext = path.extname(file.originalname);
+		cb(null, `${Date.now()}-${Math.random()}${ext}`);
+	},
+});
+
+const upload = multer({
+	storage,
+	limits: {
+		files: 5, // ⭐ 최대 5개
+		fileSize: 5 * 1024 * 1024, // 5MB
+	},
+});
+////////////////////////
+
 
 dotenv.config();
 const app = express();
@@ -260,61 +281,112 @@ app.get("/trips/:tripId/members", async (req, res) => {
 
 
 // ------------------------
-// 소비 내역 저장 API
+// 소비 내역 저장 API (+ 영수증)
 // ------------------------
-app.post("/trips/:tripId/expenses", async (req, res) => {
-	const { tripId } = req.params;
-	const { paid_by, amount, description, category, participants, shares, created_at } = req.body;
+app.post(
+	"/trips/:tripId/expenses",
+	upload.array("receipts", 5),
+	async (req, res) => {
+		console.log("==== [EXPENSE API START] ====");
 
-	console.log(paid_by, amount, description, category, participants, shares, created_at);
+		const { tripId } = req.params;
+		let {
+			paid_by,
+			amount,
+			description,
+			memo,
+			category,
+			shares,
+			created_at,
+		} = req.body;
 
-	try {
-		await db.beginTransaction();
+		console.log("📦 BODY:", req.body);
+		console.log("🖼 FILES:", req.files);
 
-		// 1. expenses 테이블에 추가
-		const [expenseResult] = await db.query(
-			`INSERT INTO expenses (trip_id, paid_by, amount, description, category, created_at)
-       		VALUES (?, ?, ?, ?, ?, ?)`,
-			[tripId, paid_by, amount, description, category, created_at]
-		);
+		if (!paid_by || !amount || !shares) {
+			console.log("❌ VALIDATION FAILED");
+			return res
+				.status(400)
+				.json({ error: "paid_by, amount, shares는 필수입니다." });
+		}
 
-		const expenseId = expenseResult.insertId;
+		try {
+			await db.beginTransaction();
+			console.log("🔐 TRANSACTION BEGIN");
 
-		// 2. shares 입력
-		if (shares && shares.length > 0) {
+			// ⭐ shares JSON 파싱
+			shares = JSON.parse(shares);
+			console.log("📊 PARSED SHARES:", shares);
+
+			// 1️⃣ expenses 저장
+			const [expenseResult] = await db.query(
+				`
+				INSERT INTO expenses
+				(trip_id, paid_by, amount, description, memo, category, created_at)
+				VALUES (?, ?, ?, ?, ?, ?, ?)
+				`,
+				[tripId, paid_by, amount, description, memo, category, created_at]
+			);
+
+			const expenseId = expenseResult.insertId;
+			console.log("🆔 NEW EXPENSE ID:", expenseId);
+
+			// 2️⃣ shares 저장
 			for (const s of shares) {
+				console.log("➗ SHARE INSERT:", s);
 				await db.query(
-					`INSERT INTO expense_shares (expense_id, user_id, share)
-           			VALUES (?, ?, ?)`,
+					`
+					INSERT INTO expense_shares
+					(expense_id, user_id, share)
+					VALUES (?, ?, ?)
+					`,
 					[expenseId, s.user_id, s.share]
 				);
 			}
-		} else if (participants && participants.length > 0) {
-			const perPerson = Number((amount / participants.length).toFixed(2));
-			let remaining = amount - perPerson * (participants.length - 1);
-			remaining = Number(remaining.toFixed(2));
 
-			for (let i = 0; i < participants.length; i++) {
-				const userId = participants[i];
-				const share = (i === participants.length - 1) ? remaining : perPerson;
+			// 3️⃣ receipts 저장
+			if (req.files?.length) {
+				console.log(`🖼 RECEIPTS COUNT: ${req.files.length}`);
+
+				const values = req.files.map((file, i) => {
+					console.log(`📎 FILE ${i}:`, {
+						originalname: file.originalname,
+						filename: file.filename,
+						path: file.path,
+					});
+
+					return [
+						expenseId,
+						`/uploads/receipts/${file.filename}`,
+					];
+				});
 
 				await db.query(
-					`INSERT INTO expense_shares (expense_id, user_id, share)
-           VALUES (?, ?, ?)`,
-					[expenseId, userId, share]
+					`
+					INSERT INTO expense_receipts (expense_id, image_url)
+					VALUES ?
+					`,
+					[values]
 				);
 			}
-		} else {
-			throw new Error("participants 또는 shares 값이 필요합니다.");
-		}
 
-		await db.commit();
-		res.json({ message: "지출이 성공적으로 저장되었습니다.", expenseId });
-	} catch (err) {
-		await db.rollback();
-		res.status(500).json({ error: err.message });
+			await db.commit();
+			console.log("✅ TRANSACTION COMMIT");
+
+			res.status(201).json({
+				message: "지출 저장 성공",
+				expenseId,
+			});
+		} catch (err) {
+			await db.rollback();
+			console.error("🔥 ERROR:", err);
+			res.status(500).json({ error: err.message });
+		}
 	}
-});
+);
+
+
+
 
 
 
@@ -323,48 +395,91 @@ app.post("/trips/:tripId/expenses", async (req, res) => {
 // 소비 내역 수정 API
 // ------------------------
 // PUT /trips/:tripId/expenses/:expenseId
-app.put("/trips/:tripId/expenses/:expenseId", async (req, res) => {
-	const { tripId, expenseId } = req.params;
-	const { paid_by, amount, description, category, shares, created_at } = req.body;
-	console.log(paid_by, amount, description, category, shares, created_at);
-	console.log(tripId, expenseId);
+app.put(
+	"/trips/:tripId/expenses/:expenseId",
+	upload.array("receipts", 5),
+	async (req, res) => {
+		const { expenseId } = req.params;
+		const {
+			paid_by,
+			amount,
+			description,
+			category,
+			shares,
+			created_at,
+			keep_receipts,
+		} = req.body;
 
-	if (!paid_by || !amount) {
-		return res.status(400).json({ error: "paid_by와 amount는 필수입니다." });
-	}
+		console.log("========== [EXPENSE UPDATE START] ==========");
+		console.log("expenseId:", expenseId);
+		console.log("shares(raw):", shares);
+		console.log("keep_receipts(raw):", keep_receipts);
+		console.log("files:", req.files?.length);
 
-	try {
-		await db.beginTransaction();
+		const parsedShares =
+			typeof shares === "string" ? JSON.parse(shares) : shares;
 
-		// 1️⃣ expenses 테이블 업데이트
-		await db.query(
-			`UPDATE expenses 
-             SET paid_by = ?, amount = ?, description = ?, category = ?, created_at = ?
-             WHERE id = ? AND trip_id = ?`,
-			[paid_by, amount, description, category, created_at, expenseId, tripId]
-		);
+		const keep =
+			typeof keep_receipts === "string"
+				? JSON.parse(keep_receipts)
+				: keep_receipts || [];
 
-		// 2️⃣ 기존 expense_shares만 업데이트
-		if (shares && shares.length > 0) {
-			for (const s of shares) {
+		try {
+			await db.beginTransaction();
+			console.log("▶ DB TRANSACTION BEGIN");
+
+			// expenses
+			await db.query(
+				`UPDATE expenses
+         SET paid_by=?, amount=?, description=?, category=?, created_at=?
+         WHERE id=?`,
+				[paid_by, amount, description, category, created_at, expenseId]
+			);
+
+			// ❗ 기존 receipts 중 제거된 것 삭제
+			await db.query(
+				`DELETE FROM expense_receipts
+         WHERE expense_id=? AND image_url NOT IN (?)`,
+				[expenseId, keep.length ? keep : [""]]
+			);
+
+			// 새 이미지 저장
+			if (req.files?.length) {
+				const values = req.files.map(f => [
+					expenseId,
+					`/uploads/receipts/${f.filename}`,
+				]);
+
 				await db.query(
-					`UPDATE expense_shares
-                     SET share = ?
-                     WHERE expense_id = ? AND user_id = ?`,
-					[s.share, expenseId, s.user_id]
+					`INSERT INTO expense_receipts (expense_id, image_url) VALUES ?`,
+					[values]
 				);
 			}
+
+			// shares 재설정
+			await db.query(
+				`DELETE FROM expense_shares WHERE expense_id=?`,
+				[expenseId]
+			);
+
+			for (const s of parsedShares) {
+				await db.query(
+					`INSERT INTO expense_shares (expense_id, user_id, share)
+           VALUES (?, ?, ?)`,
+					[expenseId, s.user_id, s.share]
+				);
+			}
+
+			await db.commit();
+			console.log("▶ DB COMMIT SUCCESS");
+			res.json({ message: "수정 완료" });
+		} catch (err) {
+			console.error("❌ EXPENSE UPDATE ERROR:", err);
+			await db.rollback();
+			res.status(500).json({ message: "수정 실패" });
 		}
-
-		await db.commit();
-		res.json({ message: "지출 정보가 성공적으로 수정되었습니다." });
-
-	} catch (err) {
-		await db.rollback();
-		res.status(500).json({ error: err.message });
 	}
-});
-
+);
 
 
 
@@ -413,60 +528,98 @@ app.get("/trips/:tripId/dashboard", async (req, res) => {
 
 
 // ------------------------
-// 여행 지출 세부 내역 전체 조회 API
+// 여행 지출 세부 내역 전체 조회 API (+ 영수증)
 // ------------------------
 app.get("/trips/:tripId/expenses", async (req, res) => {
 	const { tripId } = req.params;
 
 	try {
-		// 1) 여행 지출 목록
+		console.log("==== [GET EXPENSES START] ====");
+		console.log("tripId:", tripId);
+
+		// 1️⃣ 여행 지출 목록
 		const [expenses] = await db.query(
-			`SELECT 
-         e.id AS expense_id,
-         e.description,
-         e.amount,
-         e.category,
-         e.paid_by,
-         u.name AS paid_by_name,
-         e.created_at
-       FROM expenses e
-       JOIN users u ON e.paid_by = u.id
-       WHERE e.trip_id = ?
-       ORDER BY e.created_at DESC`,
+			`
+			SELECT 
+				e.id AS expense_id,
+				e.description,
+				e.memo,
+				e.amount,
+				e.category,
+				e.paid_by,
+				u.name AS paid_by_name,
+				e.created_at
+			FROM expenses e
+			JOIN users u ON e.paid_by = u.id
+			WHERE e.trip_id = ?
+			ORDER BY e.created_at DESC
+			`,
 			[tripId]
 		);
 
-		if (expenses.length === 0) return res.json({ expenses: [] });
+		if (expenses.length === 0) {
+			console.log("📭 No expenses");
+			return res.json({ expenses: [] });
+		}
 
-		// 2) 각 지출별 참여자 부담액
+		console.log("📦 Expenses count:", expenses.length);
+
 		const expenseIds = expenses.map(e => e.expense_id);
+
+		// 2️⃣ 각 지출별 참여자 부담액
 		const [shares] = await db.query(
-			`SELECT 
-         es.expense_id,
-         es.user_id,
-         u.name AS user_name,
-         es.share
-       FROM expense_shares es
-       JOIN users u ON es.user_id = u.id
-       WHERE es.expense_id IN (?)
-       ORDER BY es.expense_id, es.user_id`,
+			`
+			SELECT 
+				es.expense_id,
+				es.user_id,
+				u.name AS user_name,
+				es.share
+			FROM expense_shares es
+			JOIN users u ON es.user_id = u.id
+			WHERE es.expense_id IN (?)
+			ORDER BY es.expense_id, es.user_id
+			`,
 			[expenseIds]
 		);
 
-		// 3) expenses에 shares 합치기
-		const expenseMap = expenses.map(exp => {
-			return {
-				...exp,
-				shares: shares.filter(s => s.expense_id === exp.expense_id)
-			};
-		});
+		console.log("➗ Shares count:", shares.length);
 
+		// 3️⃣ 각 지출별 영수증 이미지
+		const [receipts] = await db.query(
+			`
+			SELECT
+				er.expense_id,
+				er.image_url
+			FROM expense_receipts er
+			WHERE er.expense_id IN (?)
+			ORDER BY er.id
+			`,
+			[expenseIds]
+		);
+
+		console.log("🖼 Receipts count:", receipts.length);
+
+		// 4️⃣ expenses에 shares + receipts 합치기
+		const expenseMap = expenses.map(exp => ({
+			...exp,
+			shares: shares.filter(s => s.expense_id === exp.expense_id),
+			receipts: receipts
+				.filter(r => r.expense_id === exp.expense_id)
+				.map(r => r.image_url),
+		}));
+
+		console.log("✅ Response ready");
+		console.log("==== [GET EXPENSES END] ====");
+		console.log(expenseMap);
 		res.json({ expenses: expenseMap });
 	} catch (err) {
-		console.error(err);
-		res.status(500).json({ error: "지출 세부 내역 조회 중 오류 발생" });
+		console.error("🔥 ERROR:", err);
+		res.status(500).json({
+			error: "지출 세부 내역 조회 중 오류 발생",
+		});
 	}
 });
+
 
 
 // ------------------------
@@ -517,7 +670,10 @@ app.delete('/trips/expenses/:expense_id', async (req, res) => {
 		// 1. expense_shares 삭제
 		await db.query('DELETE FROM expense_shares WHERE expense_id = ?', [expense_id]);
 
-		// 2. expenses 삭제
+		// 2. expense_receipts 삭제
+		await db.query('DELETE FROM expense_receipts WHERE expense_id = ?', [expense_id]);
+
+		// 3. expenses 삭제
 		const [result] = await db.query(
 			'DELETE FROM expenses WHERE id = ?',
 			[expense_id]
@@ -533,6 +689,69 @@ app.delete('/trips/expenses/:expense_id', async (req, res) => {
 		res.status(500).json({ message: '서버 오류', error: err.message });
 	}
 });
+
+
+
+// ------------------------
+// 이미지 컬렉션 조회 API
+// ------------------------
+app.get("/trips/:tripId/receipts", async (req, res) => {
+	const { tripId } = req.params;
+
+	try {
+		const [rows] = await db.query(
+			`
+            SELECT
+                r.id AS receipt_id,
+                r.image_url,
+                r.created_at AS receipt_created_at,
+                e.id AS expense_id,
+                e.amount,
+                e.description,
+                e.memo,
+                e.category,
+                e.created_at AS expense_date,
+                u.id AS paid_by_id,
+                u.name AS paid_by_name
+            FROM expense_receipts r
+            JOIN expenses e ON r.expense_id = e.id
+            JOIN users u ON e.paid_by = u.id
+            WHERE e.trip_id = ?
+            ORDER BY e.created_at DESC
+            `,
+			[tripId]
+		);
+
+		const receipts = rows.map(r => ({
+			receipt_id: r.receipt_id,
+			image_url: r.image_url,
+			expense: {
+				expense_id: r.expense_id,
+				amount: r.amount,
+				description: r.description,
+				memo: r.memo,
+				category: r.category,
+				expense_date: r.expense_date,
+			},
+			paid_by: {
+				id: r.paid_by_id,
+				name: r.paid_by_name,
+			},
+		}));
+
+		res.json({ receipts });
+	} catch (err) {
+		console.error(err);
+		res.status(500).json({ message: "이미지 조회 실패" });
+	}
+});
+
+
+
+// 프론트에서 업로드 파일 사용
+app.use("/uploads", express.static("uploads"));
+
+
 
 
 // ------------------------

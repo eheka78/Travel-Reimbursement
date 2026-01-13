@@ -10,28 +10,29 @@ import {
 import { Picker } from "@react-native-picker/picker";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+
 import api from "../../api";
 import { FormatDateTimeKST } from "../utils/FormatDateTimeKST";
+import { CATEGORY } from "../constant/category";
+import ReceiptImagePickerEdit from "../component/ReceiptImagePickerEdit";
 
-
-const EditExpense = ({ route, navigation }) => {
-	console.log('*****************************');
-	console.log( route.params);
-	const expense = route.params.expense;
-	const tripId = route.params.tripId;
-    const fetchTripAccountStatistics = route.params?.fetchTripAccountStatistics;
-
-	console.log(expense);
+export default function EditExpense({ route, navigation }) {
+	const { expense, tripId, fetchTripAccountStatistics } = route.params;
 
 	const [loading, setLoading] = useState(true);
 	const [description, setDescription] = useState(expense.description || "");
 	const [amount, setAmount] = useState(expense.amount?.toString() || "");
 	const [category, setCategory] = useState(expense.category || "기타");
 	const [members, setMembers] = useState([]);
-	const [selectedPaidBy, setSelectedPaidBy] = useState(expense.paid_by || null);
+	const [selectedPaidBy, setSelectedPaidBy] = useState(expense.paid_by);
 	const [shares, setShares] = useState({});
 	const [splitMode, setSplitMode] = useState("엔빵");
 	const [remaining, setRemaining] = useState(0);
+
+	// ✅ receipts를 { uri } 형태로 통일
+	const [file, setFile] = useState(
+		(expense.receipts || []).map((r) => ({ uri: r }))
+	);
 
 	const [date, setDate] = useState(new Date(expense.created_at));
 	const [showPicker, setShowPicker] = useState({ mode: null });
@@ -39,142 +40,113 @@ const EditExpense = ({ route, navigation }) => {
 	useEffect(() => {
 		const fetchMembers = async () => {
 			try {
-				console.log(tripId);
 				const res = await api.get(`/trips/${tripId}/members`);
-				const membersData = res.data.members;
-				setMembers(membersData);
-				console.log(res.data.members);
+				setMembers(res.data.members);
 
-				if (membersData.length > 0) {
-					// expense.paid_by가 members 안에 있는지 확인
-					const initialPaidBy = membersData.some(m => m.id === expense.paid_by)
-						? expense.paid_by
-						: membersData[0].id;
-
-					setSelectedPaidBy(initialPaidBy);
-
-					const initShares = {};
-					membersData.forEach((m) => {
-						const shareObj = expense.shares?.find(s => s.user_id === m.id);
-						initShares[m.id] = shareObj ? shareObj.share.toString() : "0";
-					});
-					setShares(initShares);
-				}
-			} catch (err) {
-				console.error(err);
+				const initShares = {};
+				res.data.members.forEach((m) => {
+					const found = expense.shares?.find(s => s.user_id === m.id);
+					initShares[m.id] = found ? found.share.toString() : "0";
+				});
+				setShares(initShares);
+			} catch (e) {
+				console.error(e);
 			} finally {
 				setLoading(false);
 			}
 		};
-		console.log("#####################");
 		fetchMembers();
-		console.log("#####################");
-	}, [expense]);
+	}, []);
 
-
-	// 엔빵, 직접입력 계산 로직 그대로
+	// 엔빵
 	useEffect(() => {
 		if (splitMode !== "엔빵" || !amount || members.length === 0) return;
 		const split = (Number(amount) / members.length).toFixed(2);
-		const updated = {};
-		members.forEach((m) => (updated[m.id] = split));
-		setShares(updated);
+		const next = {};
+		members.forEach(m => (next[m.id] = split));
+		setShares(next);
 		setRemaining(0);
 	}, [amount, members, splitMode]);
 
+	// 직접 입력
 	useEffect(() => {
 		if (splitMode !== "직접 입력") return;
 		const total = Object.values(shares).reduce(
-			(sum, v) => sum + Number(v || 0),
+			(s, v) => s + Number(v || 0),
 			0
 		);
 		setRemaining(Number(amount || 0) - total);
 	}, [shares, amount, splitMode]);
 
-
-	// 수정 API 호출
 	const handleEdit = async () => {
-		if (!description || !amount || !selectedPaidBy) {
-			alert("설명, 금액, 지불자를 입력해주세요.");
-			return;
-		}
-		if (splitMode === "직접 입력" && remaining !== 0) {
-			alert(`금액이 맞지 않습니다. 남은 금액: ${remaining}`);
-			return;
-		}
-
-		const sharesArray = members.map((m) => ({
+		const sharesArray = members.map(m => ({
 			user_id: m.id,
 			share: Number(shares[m.id] || 0),
 		}));
 
-		try {
-			const res = await api.put(`/trips/${tripId}/expenses/${expense.expense_id}`, {
-				paid_by: selectedPaidBy,
-				amount: Number(amount),
-				description,
-				category,
-				shares: sharesArray,
-				created_at: FormatDateTimeKST(date),
-			});
-			console.log(res.data);
+		// ✅ 기존 / 새 이미지 분리
+		const keepReceipts = file
+			.filter(f => f.uri && !f.uri.startsWith("file://"))
+			.map(f => f.uri);
 
-			alert("지출 내역이 수정되었습니다.");
-            route.params.fetchTripAccountStatistics?.();
+		const newFiles = file.filter(f => f.uri?.startsWith("file://"));
+
+		const formData = new FormData();
+		formData.append("paid_by", selectedPaidBy);
+		formData.append("amount", Number(amount));
+		formData.append("description", description);
+		formData.append("category", category);
+		formData.append("created_at", FormatDateTimeKST(date));
+		formData.append("shares", JSON.stringify(sharesArray));
+		formData.append("keep_receipts", JSON.stringify(keepReceipts));
+
+		newFiles.forEach((img, i) => {
+			formData.append("receipts", {
+				uri: img.uri,
+				name: img.fileName || `receipt_${i}.jpg`,
+				type: img.mimeType || "image/jpeg",
+			});
+		});
+
+		try {
+			await api.put(
+				`/trips/${tripId}/expenses/${expense.expense_id}`,
+				formData,
+				{
+					headers: { "Content-Type": "multipart/form-data" },
+				}
+			);
+
+			fetchTripAccountStatistics?.();
 			navigation.pop();
-		} catch (err) {
-			alert(err.response?.data?.message || "수정 실패");
+		} catch (e) {
+			console.error(e);
+			alert("수정 실패");
 		}
 	};
 
-	if (loading) return <Text style={{ padding: 20 }}>로딩 중...</Text>;
+
+	if (loading) return <Text>로딩 중...</Text>;
 
 	return (
 		<SafeAreaProvider>
-			<SafeAreaView edges={['bottom', 'top']} style={{ flex: 1 }}>
+			<SafeAreaView style={{ flex: 1 }}>
 				<ScrollView contentContainerStyle={styles.container}>
 
 					{/* 날짜 */}
 					<View style={styles.card}>
-						<Text style={styles.label}>지출 날짜 / 시간</Text>
-						<Text style={styles.value}>{date.toLocaleString()}</Text>
-
-						<View style={styles.row}>
-							<Pressable
-								style={styles.subButton}
-								onPress={() => setShowPicker({ mode: "date" })}
-							>
-								<Text>날짜 선택</Text>
-							</Pressable>
-							<Pressable
-								style={styles.subButton}
-								onPress={() => setShowPicker({ mode: "time" })}
-							>
-								<Text>시간 선택</Text>
-							</Pressable>
-						</View>
+						<Text style={styles.label}>지출 날짜</Text>
+						<Text>{date.toLocaleString()}</Text>
 					</View>
-
-					{showPicker.mode && (
-						<DateTimePicker
-							value={date}
-							mode={showPicker.mode}
-							onChange={(e, d) => {
-								setShowPicker({ mode: null });
-								if (d) setDate(d);
-							}}
-						/>
-					)}
 
 					{/* 금액 */}
 					<View style={styles.card}>
-						<Text style={styles.label}>총 금액</Text>
+						<Text style={styles.label}>금액</Text>
 						<TextInput
 							style={styles.input}
 							value={amount}
 							onChangeText={setAmount}
 							keyboardType="numeric"
-							placeholder="금액 입력"
 						/>
 					</View>
 
@@ -185,7 +157,6 @@ const EditExpense = ({ route, navigation }) => {
 							style={styles.input}
 							value={description}
 							onChangeText={setDescription}
-							placeholder="사용 내역"
 						/>
 					</View>
 
@@ -194,103 +165,43 @@ const EditExpense = ({ route, navigation }) => {
 						<Text style={styles.label}>카테고리</Text>
 						<View style={styles.pickerBox}>
 							<Picker selectedValue={category} onValueChange={setCategory}>
-								<Picker.Item label="숙박" value="숙박" />
-								<Picker.Item label="식사" value="식사" />
-								<Picker.Item label="교통" value="교통" />
-								<Picker.Item label="액티비티" value="액티비티" />
-								<Picker.Item label="쇼핑" value="쇼핑" />
-								<Picker.Item label="기타" value="기타" />
+								{CATEGORY.map(c => (
+									<Picker.Item key={c} label={c} value={c} />
+								))}
 							</Picker>
 						</View>
 					</View>
 
-					{/* 지불자 */}
+					{/* 영수증 */}
 					<View style={styles.card}>
-						<Text style={styles.label}>지불자</Text>
-						{members.length > 0 && selectedPaidBy && (
-							<View style={styles.pickerBox}>
-								<Picker
-									selectedValue={selectedPaidBy}
-									onValueChange={setSelectedPaidBy}
-								>
-									{members.map((m) => (
-										<Picker.Item key={m.id} label={m.name} value={m.id} />
-									))}
-								</Picker>
-							</View>
-						)}
-
+						<ReceiptImagePickerEdit file={file} setFile={setFile} />
 					</View>
 
-					{/* 분배 */}
-					<View style={styles.card}>
-						<Text style={styles.label}>분배 방식</Text>
-						<View style={styles.pickerBox}>
-							<Picker selectedValue={splitMode} onValueChange={setSplitMode}>
-								<Picker.Item label="엔빵" value="엔빵" />
-								<Picker.Item label="직접 입력" value="직접 입력" />
-							</Picker>
-						</View>
-
-						{splitMode === "직접 입력" && (
-							<Text style={styles.remaining}>
-								남은 금액: {remaining.toFixed(2)} 원
-							</Text>
-						)}
-
-						{members.map((m) => (
-							<View key={m.id} style={styles.memberRow}>
-								<Text style={{ flex: 1 }}>{m.name}</Text>
-								<TextInput
-									style={[styles.input, { flex: 1 }]}
-									keyboardType="numeric"
-									value={shares[m.id]}
-									onChangeText={(v) =>
-										setShares((p) => ({ ...p, [m.id]: v }))
-									}
-								/>
-							</View>
-						))}
-					</View>
-
-					{/* 등록 버튼 */}
 					<Pressable style={styles.submitButton} onPress={handleEdit}>
 						<Text style={styles.submitText}>수정하기</Text>
 					</Pressable>
-
 				</ScrollView>
 			</SafeAreaView>
 		</SafeAreaProvider>
 	);
 };
 
-export default EditExpense;
+
 
 const styles = StyleSheet.create({
-	container: {
-		padding: 16,
-		backgroundColor: "#f8f9fa",
-	},
+	container: { padding: 16 },
 	card: {
-		backgroundColor: "white",
+		backgroundColor: "#fff",
 		borderRadius: 14,
 		padding: 16,
 		marginBottom: 14,
 	},
-	label: {
-		fontWeight: "700",
-		marginBottom: 6,
-	},
-	value: {
-		color: "#555",
-		marginBottom: 10,
-	},
+	label: { fontWeight: "700", marginBottom: 6 },
 	input: {
 		borderWidth: 1,
 		borderColor: "#ddd",
 		borderRadius: 10,
 		padding: 12,
-		backgroundColor: "white",
 	},
 	pickerBox: {
 		borderWidth: 1,
@@ -298,38 +209,16 @@ const styles = StyleSheet.create({
 		borderRadius: 10,
 		overflow: "hidden",
 	},
-	row: {
-		flexDirection: "row",
-		gap: 10,
-	},
-	subButton: {
-		flex: 1,
-		padding: 12,
-		borderRadius: 10,
-		backgroundColor: "#f1f3f5",
-		alignItems: "center",
-	},
-	memberRow: {
-		flexDirection: "row",
-		alignItems: "center",
-		gap: 10,
-		marginTop: 10,
-	},
-	remaining: {
-		color: "#e03131",
-		fontWeight: "600",
-		marginTop: 10,
-	},
 	submitButton: {
-		marginVertical: 30,
 		backgroundColor: "#4f46e5",
 		padding: 18,
 		borderRadius: 16,
 		alignItems: "center",
+		marginVertical: 20,
 	},
 	submitText: {
-		color: "white",
-		fontSize: 16,
+		color: "#fff",
 		fontWeight: "700",
+		fontSize: 16,
 	},
 });

@@ -42,16 +42,8 @@ CREATE TABLE IF NOT EXISTS expenses (
   paid_by INT NOT NULL, 
   amount DECIMAL(10,2) NOT NULL, 
   description TEXT, 
-  category ENUM(
-    '숙박', 
-    '식사', 
-    '교통',
-    '액티비티',  
-    '쇼핑',  
-    '팁',  
-    '보험',  
-    '기타'
-  ) DEFAULT '기타',
+  memo TEXT, 
+  category TEXT DEFAULT '기타',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
   FOREIGN KEY (trip_id) REFERENCES trips(id) ON DELETE CASCADE, 
   FOREIGN KEY (paid_by) REFERENCES users(id) ON DELETE CASCADE 
@@ -67,4 +59,17 @@ CREATE TABLE IF NOT EXISTS expense_shares (
   FOREIGN KEY (expense_id) REFERENCES expenses(id) ON DELETE CASCADE, 
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE, 
   UNIQUE KEY unique_expense_user (expense_id, user_id) 
+);
+
+
+-- 지출 영수증 테이블
+CREATE TABLE expense_receipts (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    expense_id INT NOT NULL,
+    image_url VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (expense_id)
+        REFERENCES expenses(id)
+        ON DELETE CASCADE
 );

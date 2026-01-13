@@ -18,7 +18,7 @@ import { FormatDateKST } from '../utils/FormatDateKST';
 import TripDeleteButton from "../component/TripDeleteButton";
 import { useAuth } from "../context/AuthContext";
 
-const EditTripSetting = ({ route, navigation }) => {
+export default function EditTripSetting({ route, navigation }) {
     const trip = route.params.trip;
     const { user } = useAuth();
 
@@ -153,7 +153,6 @@ const EditTripSetting = ({ route, navigation }) => {
     );
 };
 
-export default EditTripSetting;
 
 
 const styles = StyleSheet.create({

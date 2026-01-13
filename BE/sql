@@ -1,75 +1,98 @@
-CREATE DATABASE travel_reimbursement;
+-- DB 생성
+CREATE DATABASE IF NOT EXISTS travel_reimbursement;
+CREATE USER 'travel_user'@'localhost' IDENTIFIED BY 'qwer1324';
+DEFAULT CHARACTER SET utf8mb4
+COLLATE utf8mb4_general_ci;
+
 USE travel_reimbursement;
 
+-- users
 CREATE TABLE users (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  name VARCHAR(50) NOT NULL,
-  password VARCHAR(100),
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-// INSERT INTO users (name, password) VALUES ('admin', 'admin');
-
-
-CREATE TABLE trips (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  title VARCHAR(100) NOT NULL,
-  start_date DATE,
-  end_date DATE,
-  created_at TIMESMP DEFAULT CURRENT_TIMESTAMP
-);
-ALTER TABLE trips ADD UNIQUE (title);
-ALTER TABLE trips ADD COLUMN description TEXT;
-
-
-CREATE TABLE trip_members (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  trip_id INT NOT NULL,
-  user_id INT NOT NULL,
-  role ENUM('owner', 'member') DEFAULT 'member',  -- 여행 만든 사람 구분용
-  joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
-  FOREIGN KEY (trip_id) REFERENCES trips(id) ON DELETE CASCADE,
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-
-  UNIQUE KEY unique_trip_user (trip_id, user_id) -- 중복 방지
-);
-
-
--- 여행 지출 테이블
-CREATE TABLE IF NOT EXISTS expenses ( 
-  id INT AUTO_INCREMENT PRIMARY KEY, 
-  trip_id INT NOT NULL, 
-  paid_by INT NOT NULL, 
-  amount DECIMAL(10,2) NOT NULL, 
-  description TEXT, 
-  memo TEXT, 
-  category TEXT DEFAULT '기타',
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
-  FOREIGN KEY (trip_id) REFERENCES trips(id) ON DELETE CASCADE, 
-  FOREIGN KEY (paid_by) REFERENCES users(id) ON DELETE CASCADE 
-);
-
-
--- 지출 참여자별 부담액 테이블
-CREATE TABLE IF NOT EXISTS expense_shares ( 
-  id INT AUTO_INCREMENT PRIMARY KEY, 
-  expense_id INT NOT NULL, 
-  user_id INT NOT NULL, 
-  share DECIMAL(10,2) NOT NULL, 
-  FOREIGN KEY (expense_id) REFERENCES expenses(id) ON DELETE CASCADE, 
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE, 
-  UNIQUE KEY unique_expense_user (expense_id, user_id) 
-);
-
-
--- 지출 영수증 테이블
-CREATE TABLE expense_receipts (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    expense_id INT NOT NULL,
-    image_url VARCHAR(255) NOT NULL,
+    id INT(11) NOT NULL AUTO_INCREMENT,
+    name VARCHAR(50) NOT NULL,
+    password VARCHAR(100),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
+);
 
-    FOREIGN KEY (expense_id)
-        REFERENCES expenses(id)
+-- trips
+CREATE TABLE trips (
+    id INT(11) NOT NULL AUTO_INCREMENT,
+    title VARCHAR(100) NOT NULL,
+    start_date DATE,
+    end_date DATE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    description TEXT,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_trips_title (title)
+);
+
+-- trip_members
+CREATE TABLE trip_members (
+    id INT(11) NOT NULL AUTO_INCREMENT,
+    trip_id INT(11) NOT NULL,
+    user_id INT(11) NOT NULL,
+    role ENUM('owner', 'member') DEFAULT 'member',
+    joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_trip_members_trip_id (trip_id),
+    KEY idx_trip_members_user_id (user_id),
+    CONSTRAINT fk_trip_members_trip
+        FOREIGN KEY (trip_id) REFERENCES trips(id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_trip_members_user
+        FOREIGN KEY (user_id) REFERENCES users(id)
         ON DELETE CASCADE
 );
+
+-- expenses
+CREATE TABLE expenses (
+    id INT(11) NOT NULL AUTO_INCREMENT,
+    trip_id INT(11) NOT NULL,
+    paid_by INT(11) NOT NULL,
+    amount DECIMAL(10,2) NOT NULL,
+    description TEXT,
+    memo TEXT,
+    category TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_expenses_trip_id (trip_id),
+    KEY idx_expenses_paid_by (paid_by),
+    CONSTRAINT fk_expenses_trip
+        FOREIGN KEY (trip_id) REFERENCES trips(id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_expenses_paid_by
+        FOREIGN KEY (paid_by) REFERENCES users(id)
+);
+
+-- expense_shares
+CREATE TABLE expense_shares (
+    id INT(11) NOT NULL AUTO_INCREMENT,
+    expense_id INT(11) NOT NULL,
+    user_id INT(11) NOT NULL,
+    share DECIMAL(10,2) NOT NULL,
+    PRIMARY KEY (id),
+    KEY idx_expense_shares_expense_id (expense_id),
+    KEY idx_expense_shares_user_id (user_id),
+    CONSTRAINT fk_expense_shares_expense
+        FOREIGN KEY (expense_id) REFERENCES expenses(id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_expense_shares_user
+        FOREIGN KEY (user_id) REFERENCES users(id)
+        ON DELETE CASCADE
+);
+
+-- expense_receipts
+CREATE TABLE expense_receipts (
+    id INT(11) NOT NULL AUTO_INCREMENT,
+    expense_id INT(11) NOT NULL,
+    image_url VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_expense_receipts_expense_id (expense_id),
+    CONSTRAINT fk_expense_receipts_expense
+        FOREIGN KEY (expense_id) REFERENCES expenses(id)
+        ON DELETE CASCADE
+);
+
+EXIT;

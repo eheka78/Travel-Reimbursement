@@ -119,7 +119,16 @@ export default function Login() {
 							value={pwd}
 							onChangeText={setPwd}
 							style={styles.input}
+							secureTextEntry
 						/>
+
+						<Pressable style={styles.loginBtn}
+							onPress={() => {
+								navigation.navigate("Signup");
+							}}
+						>
+							<Text style={styles.loginText}>회원가입</Text>
+						</Pressable>
 
 						<Pressable style={styles.loginBtn} onPress={handleLogin}>
 							<Text style={styles.loginText}>로그인</Text>

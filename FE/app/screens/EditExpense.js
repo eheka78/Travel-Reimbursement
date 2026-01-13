@@ -115,7 +115,12 @@ export default function EditExpense({ route, navigation }) {
 		try {
 			await api.put(
 				`/trips/${tripId}/expenses/${expense.expense_id}`,
-				formData
+				formData,
+				{
+					headers: {
+						"Content-Type": "multipart/form-data",
+					},
+				}
 			);
 
 			fetchTripAccountStatistics?.();

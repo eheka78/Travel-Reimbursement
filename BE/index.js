@@ -73,6 +73,38 @@ app.post("/login", async (req, res) => {
 
 
 // ------------------------
+// 회원가입 API
+// ------------------------
+app.post("/signup", async (req, res) => {
+	const { Id, password } = req.body;
+
+	try {
+		// 아이디 중복 체크
+		const [exists] = await db.query(
+			"SELECT * FROM users WHERE name = ?",
+			[Id]
+		);
+
+		if (exists.length > 0) {
+			return res
+				.status(409)
+				.json({ success: false, message: "이미 존재하는 아이디입니다" });
+		}
+
+		// 회원가입
+		await db.query(
+			"INSERT INTO users (name, password) VALUES (?, ?)",
+			[Id, password]
+		);
+
+		res.json({ success: true });
+	} catch (err) {
+		res.status(500).json({ error: err.message });
+	}
+});
+
+
+// ------------------------
 // 여행 등록 API
 // ------------------------
 app.post("/trips", async (req, res) => {
@@ -413,6 +445,14 @@ app.put(
 			keep_receipts,
 		} = req.body;
 
+		
+		console.log("========== [EXPENSE UPDATE START] ==========");
+		console.log("expenseId:", expenseId);
+		console.log("shares(raw):", shares);
+		console.log("keep_receipts(raw):", keep_receipts);
+		console.log("memo:", memo);
+		console.log("files:", req.files?.length);
+		
 		console.log(paid_by,
 			amount,
 			description,
@@ -421,14 +461,7 @@ app.put(
 			shares,
 			created_at,
 			keep_receipts);
-
-		console.log("========== [EXPENSE UPDATE START] ==========");
-		console.log("expenseId:", expenseId);
-		console.log("shares(raw):", shares);
-		console.log("keep_receipts(raw):", keep_receipts);
-		console.log("memo:", memo);
-		console.log("files:", req.files?.length);
-
+			
 		const parsedShares =
 			typeof shares === "string" ? JSON.parse(shares) : shares;
 

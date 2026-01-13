@@ -16,6 +16,7 @@ import EditTripSetting from './app/screens/EditTripSetting';
 import EditExpense from "./app/screens/EditExpense";
 import ImageCollection from "./app/screens/ImageCollection";
 import ReceiptDetail from "./app/screens/ReceiptDetail";
+import Signup from "./app/screens/Signup";
 
 
 const Stack = createNativeStackNavigator();
@@ -34,6 +35,11 @@ export default function App() {
 					<Stack.Screen
 						name="Login"
 						component={Login}
+						options={{ headerShown: false }}
+					/>
+					<Stack.Screen
+						name="Signup"
+						component={Signup}
 						options={{ headerShown: false }}
 					/>
 					<Stack.Screen name="Trip" component={Trip} />

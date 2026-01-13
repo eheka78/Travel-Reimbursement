@@ -21,6 +21,7 @@ export default function EditExpense({ route, navigation }) {
 
 	const [loading, setLoading] = useState(true);
 	const [description, setDescription] = useState(expense.description || "");
+	const [memo, setMemo] = useState(expense.memo || "");
 	const [amount, setAmount] = useState(expense.amount?.toString() || "");
 	const [category, setCategory] = useState(expense.category || "기타");
 	const [members, setMembers] = useState([]);
@@ -95,6 +96,7 @@ export default function EditExpense({ route, navigation }) {
 		formData.append("paid_by", selectedPaidBy);
 		formData.append("amount", Number(amount));
 		formData.append("description", description);
+		formData.append("memo", memo);
 		formData.append("category", category);
 		formData.append("created_at", FormatDateTimeKST(date));
 		formData.append("shares", JSON.stringify(sharesArray));
@@ -111,10 +113,7 @@ export default function EditExpense({ route, navigation }) {
 		try {
 			await api.put(
 				`/trips/${tripId}/expenses/${expense.expense_id}`,
-				formData,
-				{
-					headers: { "Content-Type": "multipart/form-data" },
-				}
+				formData
 			);
 
 			fetchTripAccountStatistics?.();
@@ -170,6 +169,16 @@ export default function EditExpense({ route, navigation }) {
 								))}
 							</Picker>
 						</View>
+					</View>
+
+					{/* 메모 */}
+					<View style={styles.card}>
+						<Text style={styles.label}>메모</Text>
+						<TextInput
+							style={styles.input}
+							value={memo}
+							onChangeText={setMemo}
+						/>
 					</View>
 
 					{/* 영수증 */}

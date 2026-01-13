@@ -14,6 +14,7 @@ import api from "../../api";
 import { FormatDateTimeKST } from "../utils/FormatDateTimeKST";
 import ReceiptImagePicker from "../component/ReceiptImagePicker";
 import { CATEGORY } from '../constant/category';
+import { FormatUTCtoDateTime } from "../utils/FormatUTCtoDateTime";
 
 export default function AddExpense({ route, navigation }) {
 	const { trip } = route.params;
@@ -75,6 +76,8 @@ export default function AddExpense({ route, navigation }) {
 	}, [shares, amount, splitMode]);
 
 	const handleSubmit = async () => {
+		console.log("####: ", date);
+		console.log("####: ", FormatUTCtoDateTime(date.toISOString()));
 		console.log("==== [SUBMIT START] ====");
 
 		if (!description || !amount || !selectedPaidBy) {
@@ -103,7 +106,7 @@ export default function AddExpense({ route, navigation }) {
 		formData.append("description", description);
 		formData.append("memo", memo);
 		formData.append("category", category);
-		formData.append("created_at", FormatDateTimeKST(date));
+		formData.append("created_at", FormatUTCtoDateTime(date.toISOString()));
 
 		// ⭐ 배열은 JSON 문자열
 		formData.append("shares", JSON.stringify(sharesArray));

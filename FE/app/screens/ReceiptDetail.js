@@ -1,15 +1,25 @@
-import { StyleSheet, View, Image, Text } from "react-native";
+import { StyleSheet, View, Image, Text, Pressable } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import api from "../../api";
 import { FormatDateKST } from "../utils/FormatDateKST";
 
-export default function ReceiptDetail({ route }) {
+export default function ReceiptDetail({ route, navigation }) {
     const { receipt } = route.params;
     const { expense, paid_by, image_url } = receipt;
 
     return (
         <SafeAreaProvider>
-            <SafeAreaView style={styles.container}>
+            <SafeAreaView edges={["top", "bottom"]} style={styles.container}>
+                <Pressable
+                    onPress={() => { 
+                        console.log("close");
+                        navigation.pop(); 
+                    }}
+                    style={styles.closeBtn}
+                >
+                    <Text style={styles.closeText}>✕</Text>
+                </Pressable>
+
                 <Image
                     source={{ uri: `${api.defaults.baseURL}${image_url}` }}
                     style={styles.image}
@@ -59,6 +69,25 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: "white",
     },
+
+    closeBtn: {
+        zIndex: 999,
+        position: "absolute",
+        right: 20,
+        top: 60,
+        backgroundColor: "rgba(0,0,0,0.6)",
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    closeText: {
+        color: "white",
+        fontSize: 18,
+        fontWeight: "700",
+    },
+
     image: {
         width: "100%",
         height: "100%",

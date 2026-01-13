@@ -406,6 +406,7 @@ app.put(
 			paid_by,
 			amount,
 			description,
+			memo,
 			category,
 			shares,
 			created_at,
@@ -433,15 +434,15 @@ app.put(
 			// expenses
 			await db.query(
 				`UPDATE expenses
-         SET paid_by=?, amount=?, description=?, category=?, created_at=?
-         WHERE id=?`,
-				[paid_by, amount, description, category, created_at, expenseId]
+				SET paid_by=?, amount=?, description=?, memo=?, category=?, created_at=?
+				WHERE id=?`,
+				[paid_by, amount, description, memo, category, created_at, expenseId]
 			);
 
 			// ❗ 기존 receipts 중 제거된 것 삭제
 			await db.query(
 				`DELETE FROM expense_receipts
-         WHERE expense_id=? AND image_url NOT IN (?)`,
+         		WHERE expense_id=? AND image_url NOT IN (?)`,
 				[expenseId, keep.length ? keep : [""]]
 			);
 

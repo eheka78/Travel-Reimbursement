@@ -118,7 +118,6 @@ export default function Login() {
 							placeholder="비밀번호를 입력하세요"
 							value={pwd}
 							onChangeText={setPwd}
-							secureTextEntry
 							style={styles.input}
 						/>
 

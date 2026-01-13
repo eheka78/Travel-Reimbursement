@@ -413,10 +413,20 @@ app.put(
 			keep_receipts,
 		} = req.body;
 
+		console.log(paid_by,
+			amount,
+			description,
+			memo,
+			category,
+			shares,
+			created_at,
+			keep_receipts);
+
 		console.log("========== [EXPENSE UPDATE START] ==========");
 		console.log("expenseId:", expenseId);
 		console.log("shares(raw):", shares);
 		console.log("keep_receipts(raw):", keep_receipts);
+		console.log("memo:", memo);
 		console.log("files:", req.files?.length);
 
 		const parsedShares =

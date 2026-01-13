@@ -80,6 +80,8 @@ export default function EditExpense({ route, navigation }) {
 	}, [shares, amount, splitMode]);
 
 	const handleEdit = async () => {
+		console.log("memo:", memo);
+
 		const sharesArray = members.map(m => ({
 			user_id: m.id,
 			share: Number(shares[m.id] || 0),

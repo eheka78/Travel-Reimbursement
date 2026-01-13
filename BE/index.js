@@ -78,6 +78,7 @@ app.post("/login", async (req, res) => {
 app.post("/trips", async (req, res) => {
 	const { title, start_date, end_date, user_id } = req.body;
 	if (!title) return res.status(400).json({ message: "여행 제목은 필수입니다." });
+	console.log(title, start_date, end_date, user_id);
 
 	try {
 		const [result] = await db.query(
@@ -85,6 +86,7 @@ app.post("/trips", async (req, res) => {
 			[title, start_date, end_date]
 		);
 		const tripId = result.insertId;
+		console.log("tripId: " + tripId);
 
 		await db.query(
 			"INSERT INTO trip_members (trip_id, user_id, role) VALUES (?, ?, 'owner')",

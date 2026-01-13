@@ -39,6 +39,7 @@ export default function AddTrip({ navigation }) {
     };
 
     const registerTrip = async () => {
+        console.log(title, formatDateTime(startDate), formatDateTime(endDate), user.id);
         try {
             await api.post("/trips", {
                 title,

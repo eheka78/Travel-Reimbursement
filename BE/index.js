@@ -3,7 +3,8 @@ import mysql from "mysql2/promise"; // promise 버전으로 변경
 import cors from "cors";
 import dotenv from "dotenv"; import multer from "multer";
 import path from "path";
-import pool from "./pool";
+import pool from "./pool.js";
+
 
 
 // 영수증 업로드 설정

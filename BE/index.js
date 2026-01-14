@@ -44,6 +44,7 @@ app.get("/", (req, res) => {
 // 로그인 API
 // ------------------------
 app.post("/login", async (req, res) => {
+	console.log(req.body);
 	const conn = await pool.getConnection();
 
 	const { Id, password } = req.body;

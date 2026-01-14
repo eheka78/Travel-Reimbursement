@@ -24,21 +24,18 @@ const AccountBook = ({ route, navigation }) => {
     const listRef = useRef(null);
     const tripId = route.params.trip.trip_id;
 
-    const fetchTripAccountStatistics = async () => {
+    const fetchTripAccountData = async () => {
         try {
-            const res = await api.get(`/trips/${tripId}/dashboard`);
-            setDashboard(res.data.members);
-        } catch (err) {
-            console.error(err);
-        } finally {
-            fetchTripAccountDetail();
-        }
-    };
+            setLoading(true);
 
-    const fetchTripAccountDetail = async () => {
-        try {
-            const res = await api.get(`/trips/${tripId}/expenses`);
-            setExpensesDetail(res.data.expenses);
+            const [dashboardRes, expensesRes] = await Promise.all([
+                api.get(`/trips/${tripId}/dashboard`),
+                api.get(`/trips/${tripId}/expenses`),
+            ]);
+
+            setDashboard(dashboardRes.data.members);
+            setExpensesDetail(expensesRes.data.expenses);
+
         } catch (err) {
             console.error(err);
         } finally {
@@ -46,16 +43,13 @@ const AccountBook = ({ route, navigation }) => {
         }
     };
 
-    useEffect(() => {
-        if (ExpenseDetail)
-            console.log(expensesDetail);
-    }, [ExpenseDetail]);
 
     useFocusEffect(
         useCallback(() => {
-            fetchTripAccountStatistics();
-        }, [])
+            fetchTripAccountData();
+        }, [tripId])
     );
+
 
     const totalExpense = useMemo(
         () => dashboard.reduce((acc, m) => acc + Number(m.paid_total), 0),
@@ -142,7 +136,7 @@ const AccountBook = ({ route, navigation }) => {
                 />
 
                 {/* 새로고침 FAB */}
-                <Pressable style={styles.fab} onPress={fetchTripAccountStatistics}>
+                <Pressable style={styles.fab} onPress={fetchTripAccountData}>
                     <Text style={styles.fabText}>⟳</Text>
                 </Pressable>
 

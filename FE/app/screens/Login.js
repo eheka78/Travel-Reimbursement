@@ -24,17 +24,6 @@ export default function Login() {
 	const [pwd, setPwd] = useState("");
 	const [checkingAutoLogin, setCheckingAutoLogin] = useState(true);
 
-	/* 🔹 로그아웃 */
-	const logout = async () => {
-		try {
-			await AsyncStorage.removeItem("travelReimbutsementUserId");
-			await AsyncStorage.removeItem("travelReimbutsementUserPwd");
-			navigation.replace("Login");
-		} catch (e) {
-			console.error("로그아웃 실패:", e);
-		}
-	};
-
 	/* 🔹 자동 로그인 */
 	useEffect(() => {
 		const checkSavedLogin = async () => {
@@ -46,13 +35,24 @@ export default function Login() {
 					"travelReimbutsementUserPwd"
 				);
 
-				// ❗ 저장된 값 없으면 자동 로그인 안 함
-				if (!savedId || !savedPwd) return;
+				console.log("saved:", savedId, savedPwd);
+
+				// 저장된 로그인 정보 없으면 그냥 통과
+				if (!savedId || !savedPwd) {
+					console.log("$$$$$$$1");
+					setCheckingAutoLogin(false);
+					return;
+				}
+
+				console.log("$$$$$$$2");
 
 				const res = await api.post("/login", {
 					Id: savedId,
 					password: savedPwd,
 				});
+
+				console.log("$$$$$$$3");
+				console.log(res.data);
 
 				setIsLoggedIn(true);
 				setUser(res.data.user);
@@ -60,12 +60,25 @@ export default function Login() {
 			} catch (err) {
 				console.log("자동 로그인 실패:", err.response?.data || err.message);
 			} finally {
+				// ⭐⭐⭐ 무조건 실행되게
+				console.log("####################");
 				setCheckingAutoLogin(false);
 			}
 		};
 
 		checkSavedLogin();
 	}, []);
+
+	/* 🔹 로그아웃 */
+	const logout = async () => {
+		try {
+			await AsyncStorage.removeItem("travelReimbutsementUserId");
+			await AsyncStorage.removeItem("travelReimbutsementUserPwd");
+		} catch (e) {
+			console.error("로그아웃 실패:", e);
+		}
+	};
+
 
 	/* 🔹 수동 로그인 */
 	const handleLogin = async () => {

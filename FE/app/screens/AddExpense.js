@@ -76,8 +76,6 @@ export default function AddExpense({ route, navigation }) {
 	}, [shares, amount, splitMode]);
 
 	const handleSubmit = async () => {
-		console.log("####: ", date);
-		console.log("####: ", FormatUTCtoDateTime(date.toISOString()));
 		console.log("==== [SUBMIT START] ====");
 
 		if (!description || !amount || !selectedPaidBy) {

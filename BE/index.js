@@ -307,109 +307,103 @@ app.get("/trips/:tripId/members", async (req, res) => {
 });
 
 
-// ------------------------
+/// ------------------------
 // 소비 내역 저장 API (+ 영수증)
 // ------------------------
-app.post("/trips/:tripId/expenses", upload.array("receipts", 5), async (req, res) => {
-	console.log("==== [EXPENSE API START] ====");
+app.post(
+	"/trips/:tripId/expenses",
+	upload.array("receipts", 5),
+	async (req, res) => {
+		console.log("==== [EXPENSE API START] ====");
 
-	const { tripId } = req.params;
-	let {
-		paid_by,
-		amount,
-		description,
-		memo,
-		category,
-		shares,
-		created_at,
-	} = req.body;
+		const { tripId } = req.params;
+		let {
+			paid_by,
+			amount,
+			description,
+			memo,
+			category,
+			shares,
+			created_at,
+		} = req.body;
 
-	console.log("📦 BODY:", req.body);
-	console.log("🖼 FILES:", req.files);
+		console.log("📦 BODY:", req.body);
+		console.log("🖼 FILES:", req.files);
 
-	if (!paid_by || !amount || !shares) {
-		console.log("❌ VALIDATION FAILED");
-		return res
-			.status(400)
-			.json({ error: "paid_by, amount, shares는 필수입니다." });
-	}
+		if (!paid_by || !amount || !shares) {
+			console.log("❌ VALIDATION FAILED");
+			return res
+				.status(400)
+				.json({ error: "paid_by, amount, shares는 필수입니다." });
+		}
 
-	try {
-		await pool.beginTransaction();
-		console.log("🔐 TRANSACTION BEGIN");
+		try {
+			// ⭐ shares JSON 파싱
+			shares = JSON.parse(shares);
+			console.log("📊 PARSED SHARES:", shares);
 
-		// ⭐ shares JSON 파싱
-		shares = JSON.parse(shares);
-		console.log("📊 PARSED SHARES:", shares);
-
-		// 1️⃣ expenses 저장
-		const [expenseResult] = await pool.query(
-			`
+			// 1️⃣ expenses 저장
+			const [expenseResult] = await pool.query(
+				`
 				INSERT INTO expenses
 				(trip_id, paid_by, amount, description, memo, category, created_at)
 				VALUES (?, ?, ?, ?, ?, ?, ?)
 				`,
-			[tripId, paid_by, amount, description, memo, category, created_at]
-		);
+				[tripId, paid_by, amount, description, memo, category, created_at]
+			);
 
-		const expenseId = expenseResult.insertId;
-		console.log("🆔 NEW EXPENSE ID:", expenseId);
+			const expenseId = expenseResult.insertId;
+			console.log("🆔 NEW EXPENSE ID:", expenseId);
 
-		// 2️⃣ shares 저장
-		for (const s of shares) {
-			console.log("➗ SHARE INSERT:", s);
-			await pool.query(
-				`
+			// 2️⃣ shares 저장
+			for (const s of shares) {
+				console.log("➗ SHARE INSERT:", s);
+				await pool.query(
+					`
 					INSERT INTO expense_shares
 					(expense_id, user_id, share)
 					VALUES (?, ?, ?)
 					`,
-				[expenseId, s.user_id, s.share]
-			);
-		}
+					[expenseId, s.user_id, s.share]
+				);
+			}
 
-		// 3️⃣ receipts 저장
-		if (req.files?.length) {
-			console.log(`🖼 RECEIPTS COUNT: ${req.files.length}`);
+			// 3️⃣ receipts 저장
+			if (req.files?.length) {
+				console.log(`🖼 RECEIPTS COUNT: ${req.files.length}`);
 
-			const values = req.files.map((file, i) => {
-				console.log(`📎 FILE ${i}:`, {
-					originalname: file.originalname,
-					filename: file.filename,
-					path: file.path,
+				const values = req.files.map((file, i) => {
+					console.log(`📎 FILE ${i}:`, {
+						originalname: file.originalname,
+						filename: file.filename,
+						path: file.path,
+					});
+
+					return [
+						expenseId,
+						`/uploads/receipts/${file.filename}`,
+					];
 				});
 
-				return [
-					expenseId,
-					`/uploads/receipts/${file.filename}`,
-				];
-			});
-
-			await pool.query(
-				`
+				await pool.query(
+					`
 					INSERT INTO expense_receipts (expense_id, image_url)
 					VALUES ?
 					`,
-				[values]
-			);
+					[values]
+				);
+			}
+
+			res.status(201).json({
+				message: "지출 저장 성공",
+				expenseId,
+			});
+		} catch (err) {
+			console.error("🔥 ERROR:", err);
+			res.status(500).json({ error: err.message });
 		}
-
-		await pool.commit();
-		console.log("✅ TRANSACTION COMMIT");
-
-		res.status(201).json({
-			message: "지출 저장 성공",
-			expenseId,
-		});
-	} catch (err) {
-		await pool.rollback();
-		console.error("🔥 ERROR:", err);
-		res.status(500).json({ error: err.message });
 	}
-}
 );
-
-
 
 
 
@@ -419,99 +413,96 @@ app.post("/trips/:tripId/expenses", upload.array("receipts", 5), async (req, res
 // 소비 내역 수정 API
 // ------------------------
 // PUT /trips/:tripId/expenses/:expenseId
-app.put("/trips/:tripId/expenses/:expenseId", upload.array("receipts", 5), async (req, res) => {
-	const { expenseId } = req.params;
-	const {
-		paid_by,
-		amount,
-		description,
-		memo,
-		category,
-		shares,
-		created_at,
-		keep_receipts,
-	} = req.body;
+app.put(
+	"/trips/:tripId/expenses/:expenseId",
+	upload.array("receipts", 5),
+	async (req, res) => {
+		const { expenseId } = req.params;
+		const {
+			paid_by,
+			amount,
+			description,
+			memo,
+			category,
+			shares,
+			created_at,
+			keep_receipts,
+		} = req.body;
 
+		console.log("========== [EXPENSE UPDATE START] ==========");
+		console.log("expenseId:", expenseId);
+		console.log("shares(raw):", shares);
+		console.log("keep_receipts(raw):", keep_receipts);
+		console.log("memo:", memo);
+		console.log("files:", req.files?.length);
 
-	console.log("========== [EXPENSE UPDATE START] ==========");
-	console.log("expenseId:", expenseId);
-	console.log("shares(raw):", shares);
-	console.log("keep_receipts(raw):", keep_receipts);
-	console.log("memo:", memo);
-	console.log("files:", req.files?.length);
+		const parsedShares =
+			typeof shares === "string" ? JSON.parse(shares) : shares;
 
-	console.log(paid_by,
-		amount,
-		description,
-		memo,
-		category,
-		shares,
-		created_at,
-		keep_receipts);
+		const keep =
+			typeof keep_receipts === "string"
+				? JSON.parse(keep_receipts)
+				: keep_receipts || [];
 
-	const parsedShares =
-		typeof shares === "string" ? JSON.parse(shares) : shares;
-
-	const keep =
-		typeof keep_receipts === "string"
-			? JSON.parse(keep_receipts)
-			: keep_receipts || [];
-
-	try {
-		await pool.beginTransaction();
-		console.log("▶ DB TRANSACTION BEGIN");
-
-		// expenses
-		await pool.query(
-			`UPDATE expenses
+		try {
+			// 1️⃣ expenses 업데이트
+			await pool.query(
+				`
+				UPDATE expenses
 				SET paid_by=?, amount=?, description=?, memo=?, category=?, created_at=?
-				WHERE id=?`,
-			[paid_by, amount, description, memo, category, created_at, expenseId]
-		);
-
-		// ❗ 기존 receipts 중 제거된 것 삭제
-		await pool.query(
-			`DELETE FROM expense_receipts
-         		WHERE expense_id=? AND image_url NOT IN (?)`,
-			[expenseId, keep.length ? keep : [""]]
-		);
-
-		// 새 이미지 저장
-		if (req.files?.length) {
-			const values = req.files.map(f => [
-				expenseId,
-				`/uploads/receipts/${f.filename}`,
-			]);
-
-			await pool.query(
-				`INSERT INTO expense_receipts (expense_id, image_url) VALUES ?`,
-				[values]
+				WHERE id=?
+				`,
+				[paid_by, amount, description, memo, category, created_at, expenseId]
 			);
-		}
 
-		// shares 재설정
-		await pool.query(
-			`DELETE FROM expense_shares WHERE expense_id=?`,
-			[expenseId]
-		);
-
-		for (const s of parsedShares) {
+			// 2️⃣ 기존 receipts 중 유지하지 않는 것 삭제
 			await pool.query(
-				`INSERT INTO expense_shares (expense_id, user_id, share)
-           VALUES (?, ?, ?)`,
-				[expenseId, s.user_id, s.share]
+				`
+				DELETE FROM expense_receipts
+				WHERE expense_id=?
+				AND image_url NOT IN (?)
+				`,
+				[expenseId, keep.length ? keep : [""]]
 			);
-		}
 
-		await pool.commit();
-		console.log("▶ DB COMMIT SUCCESS");
-		res.json({ message: "수정 완료" });
-	} catch (err) {
-		console.error("❌ EXPENSE UPDATE ERROR:", err);
-		await pool.rollback();
-		res.status(500).json({ message: "수정 실패" });
+			// 3️⃣ 새 이미지 저장
+			if (req.files?.length) {
+				const values = req.files.map((f) => [
+					expenseId,
+					`/uploads/receipts/${f.filename}`,
+				]);
+
+				await pool.query(
+					`
+					INSERT INTO expense_receipts (expense_id, image_url)
+					VALUES ?
+					`,
+					[values]
+				);
+			}
+
+			// 4️⃣ shares 재설정
+			await pool.query(
+				`DELETE FROM expense_shares WHERE expense_id=?`,
+				[expenseId]
+			);
+
+			for (const s of parsedShares) {
+				await pool.query(
+					`
+					INSERT INTO expense_shares (expense_id, user_id, share)
+					VALUES (?, ?, ?)
+					`,
+					[expenseId, s.user_id, s.share]
+				);
+			}
+
+			res.json({ message: "수정 완료" });
+		} catch (err) {
+			console.error("❌ EXPENSE UPDATE ERROR:", err);
+			res.status(500).json({ message: "수정 실패" });
+		}
 	}
-}
 );
 
 

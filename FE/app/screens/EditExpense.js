@@ -16,6 +16,7 @@ import { CATEGORY } from "../constant/category";
 import ReceiptImagePickerEdit from "../component/ReceiptImagePickerEdit";
 import { FormatUTCtoDateTime } from "../utils/FormatUTCtoDateTime";
 
+
 export default function EditExpense({ route, navigation }) {
 	const { expense, tripId } = route.params;
 
@@ -180,7 +181,6 @@ export default function EditExpense({ route, navigation }) {
 			await api.put(
 				`/trips/${tripId}/expenses/${expense.expense_id}`,
 				formData,
-				{ headers: { "Content-Type": "multipart/form-data" } }
 			);
 
 			navigation.pop(2);

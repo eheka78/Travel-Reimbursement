@@ -139,7 +139,6 @@ export default function AddExpense({ route, navigation }) {
 
 			console.log("✅ API RESPONSE:", res.data);
 
-			route.params.fetchTripAccountStatistics();
 			navigation.goBack();
 		} catch (err) {
 			console.error("❌ API ERROR:", err.response?.data || err.message);

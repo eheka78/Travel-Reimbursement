@@ -16,13 +16,10 @@ import { FormatDateTimeKST2 } from './../utils/FormatDateTimeKST2';
 export default function ExpenseDetail({ route, navigation }) {
     const expense = route.params.item;
     const tripId = route.params.tripId;
-    const fetchTripAccountStatistics =
-        route.params?.fetchTripAccountStatistics;
 
     const delExpense = async () => {
         try {
             await api.delete(`/trips/expenses/${expense.expense_id}`);
-            fetchTripAccountStatistics?.();
             navigation.pop();
         } catch (err) {
             console.error(err);
@@ -104,8 +101,7 @@ export default function ExpenseDetail({ route, navigation }) {
                             onPress={() =>
                                 navigation.navigate("EditExpense", {
                                     expense,
-                                    tripId,
-                                    fetchTripAccountStatistics,
+                                    tripId
                                 })
                             }
                             style={styles.editButton}

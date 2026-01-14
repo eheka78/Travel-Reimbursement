@@ -4,7 +4,7 @@ import { styles } from "./styles";
 import { shortenName } from "../../utils/shortenName";
 import { FormatDateKST } from "../../utils/FormatDateKST";
 
-export default function ExpenseCard({ item, index, filteredExpenses, navigation, tripId, fetchTripAccountStatistics }) {
+export default function ExpenseCard({ item, index, filteredExpenses, navigation, tripId }) {
     const currentDate = FormatDateKST(item.created_at);
     const prevDate = index > 0 ? FormatDateKST(filteredExpenses[index - 1].created_at) : null;
     const showDateHeader = index === 0 || currentDate !== prevDate;
@@ -24,8 +24,7 @@ export default function ExpenseCard({ item, index, filteredExpenses, navigation,
                 onPress={() =>
                     navigation.navigate("ExpenseDetail", {
                         item,
-                        tripId,
-                        fetchTripAccountStatistics,
+                        tripId
                     })
                 }
             >

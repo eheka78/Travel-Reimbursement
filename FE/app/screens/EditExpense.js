@@ -17,7 +17,7 @@ import ReceiptImagePickerEdit from "../component/ReceiptImagePickerEdit";
 import { FormatUTCtoDateTime } from "../utils/FormatUTCtoDateTime";
 
 export default function EditExpense({ route, navigation }) {
-	const { expense, tripId, fetchTripAccountStatistics } = route.params;
+	const { expense, tripId } = route.params;
 
 	/* =========================
 		state
@@ -183,7 +183,6 @@ export default function EditExpense({ route, navigation }) {
 				{ headers: { "Content-Type": "multipart/form-data" } }
 			);
 
-			fetchTripAccountStatistics?.();
 			navigation.pop(2);
 		} catch (e) {
 			console.error(e);

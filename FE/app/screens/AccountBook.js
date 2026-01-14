@@ -103,8 +103,7 @@ const AccountBook = ({ route, navigation }) => {
                                 style={styles.addButton}
                                 onPress={() =>
                                     navigation.navigate("AddExpense", {
-                                        trip: route.params.trip,
-                                        fetchTripAccountStatistics,
+                                        trip: route.params.trip
                                     })
                                 }
                             >
@@ -138,7 +137,6 @@ const AccountBook = ({ route, navigation }) => {
                             filteredExpenses={filteredExpenses}
                             navigation={navigation}
                             tripId={tripId}
-                            fetchTripAccountStatistics={fetchTripAccountStatistics}
                         />
                     )}
                 />

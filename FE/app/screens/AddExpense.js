@@ -132,7 +132,12 @@ export default function AddExpense({ route, navigation }) {
 			console.log("🚀 API REQUEST START");
 			const res = await api.post(
 				`/trips/${trip.trip_id}/expenses`,
-				formData
+				formData,
+				{
+					headers: {
+						"Content-Type": "multipart/form-data",
+					},
+				}
 			);
 
 			console.log("✅ API RESPONSE:", res.data);

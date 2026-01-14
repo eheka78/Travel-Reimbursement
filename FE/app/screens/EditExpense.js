@@ -40,7 +40,7 @@ export default function EditExpense({ route, navigation }) {
 
 	// splitMode 엔빵인지 직접 입력인 지 판단하는
 	useEffect(() => {
-		if(splitMode != ''){
+		if (splitMode != '') {
 			return;
 		}
 
@@ -181,6 +181,11 @@ export default function EditExpense({ route, navigation }) {
 			await api.put(
 				`/trips/${tripId}/expenses/${expense.expense_id}`,
 				formData,
+				{
+					headers: {
+						"Content-Type": "multipart/form-data",
+					},
+				}
 			);
 
 			navigation.pop(2);

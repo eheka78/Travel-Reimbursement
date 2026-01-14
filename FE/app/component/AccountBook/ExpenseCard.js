@@ -34,7 +34,11 @@ export default function ExpenseCard({ item, index, filteredExpenses, navigation,
                     <Text style={styles.cardAmount}>${item.amount}</Text>
                 </View>
 
-                <Text style={styles.cardMeta}>지불자 · {item.paid_by_name}</Text>
+                <View style={styles.metaRow}>
+                    <Text style={styles.cardMeta}>{item.category}</Text>
+                    <Text style={styles.dot}>·</Text>
+                    <Text style={styles.cardMeta}>지불자 {item.paid_by_name}</Text>
+                </View>
 
                 <View style={styles.shareBox}>
                     {item.shares.map((s, idx) => (

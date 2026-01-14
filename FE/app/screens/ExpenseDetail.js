@@ -9,8 +9,9 @@ import {
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import api from "../../api";
 import { colors } from "../constant/colors";
-import { FormatDateTimeKST } from "../utils/FormatDateTimeKST";
 import ReceiptImageViewer from "../component/ReceiptImageViewer";
+import { FormatDateTimeKST2 } from './../utils/FormatDateTimeKST2';
+
 
 export default function ExpenseDetail({ route, navigation }) {
     const expense = route.params.item;
@@ -28,6 +29,7 @@ export default function ExpenseDetail({ route, navigation }) {
         }
     };
 
+    
     return (
         <SafeAreaProvider>
             <SafeAreaView style={{ flex: 1, backgroundColor: "#F6F7FB" }}>
@@ -68,7 +70,7 @@ export default function ExpenseDetail({ route, navigation }) {
                         />
                         <InfoRow
                             label="날짜"
-                            value={FormatDateTimeKST(expense.created_at)}
+                            value={FormatDateTimeKST2(expense.created_at)}
                         />
 
                         {expense.memo && (

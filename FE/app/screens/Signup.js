@@ -80,7 +80,6 @@ export default function Signup() {
 							value={pwd}
 							onChangeText={setPwd}
 							style={styles.input}
-							secureTextEntry
 						/>
 
 						<Text style={styles.label}>비밀번호 확인</Text>
@@ -89,11 +88,19 @@ export default function Signup() {
 							value={confirmPwd}
 							onChangeText={setConfirmPwd}
 							style={styles.input}
-							secureTextEntry
 						/>
 
 						<Pressable style={styles.signupBtn} onPress={handleSignup}>
 							<Text style={styles.signupText}>회원가입</Text>
+						</Pressable>
+
+						<Pressable
+							style={styles.moveBtn}
+							onPress={() =>
+								navigation.replace("Login")
+							}
+						>
+							<Text style={styles.moveText}>로그인 화면으로</Text>
 						</Pressable>
 					</View>
 				</KeyboardAvoidingView>
@@ -157,5 +164,15 @@ const styles = StyleSheet.create({
 		color: "white",
 		fontSize: 16,
 		fontWeight: "bold",
+	},
+
+	moveBtn: {
+		marginTop: 10,
+		borderRadius: 12,
+		alignItems: "center",
+	},
+	moveText: {
+		textDecorationLine: "underline",
+		textDecorationColor: "black",
 	},
 });

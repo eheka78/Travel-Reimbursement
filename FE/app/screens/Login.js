@@ -24,30 +24,41 @@ export default function Login() {
 	const [pwd, setPwd] = useState("");
 	const [checkingAutoLogin, setCheckingAutoLogin] = useState(true);
 
-	/** 🔹 앱 시작 시 자동 로그인 체크 */
-	// 저장되어 있는 Id, Pwd 가져와서 로그인
+	/* 🔹 로그아웃 */
+	const logout = async () => {
+		try {
+			await AsyncStorage.removeItem("travelReimbutsementUserId");
+			await AsyncStorage.removeItem("travelReimbutsementUserPwd");
+			navigation.replace("Login");
+		} catch (e) {
+			console.error("로그아웃 실패:", e);
+		}
+	};
+
+	/* 🔹 자동 로그인 */
 	useEffect(() => {
 		const checkSavedLogin = async () => {
 			try {
-				const travelReimbutsementUserId =
-					await AsyncStorage.getItem("travelReimbutsementUserId");
-				const travelReimbutsementUserPwd =
-					await AsyncStorage.getItem("travelReimbutsementUserPwd");
+				const savedId = await AsyncStorage.getItem(
+					"travelReimbutsementUserId"
+				);
+				const savedPwd = await AsyncStorage.getItem(
+					"travelReimbutsementUserPwd"
+				);
+
+				// ❗ 저장된 값 없으면 자동 로그인 안 함
+				if (!savedId || !savedPwd) return;
 
 				const res = await api.post("/login", {
-					Id: travelReimbutsementUserId,
-					password: travelReimbutsementUserPwd,
+					Id: savedId,
+					password: savedPwd,
 				});
-				console.log(res.data.user);
 
-				// 로그인 상태 저장
 				setIsLoggedIn(true);
 				setUser(res.data.user);
-
 				navigation.replace("Home");
-
 			} catch (err) {
-				// 자동로그인 catch문
+				console.log("자동 로그인 실패:", err.response?.data || err.message);
 			} finally {
 				setCheckingAutoLogin(false);
 			}
@@ -56,57 +67,51 @@ export default function Login() {
 		checkSavedLogin();
 	}, []);
 
-
-	/** 🔹 로그인 */
+	/* 🔹 수동 로그인 */
 	const handleLogin = async () => {
 		try {
 			const res = await api.post("/login", {
 				Id,
 				password: pwd,
 			});
-			console.log(res.data.user);
 
-			// 로그인 상태 저장
 			setIsLoggedIn(true);
 			setUser(res.data.user);
 
-			// 📌 아이디 저장
 			await AsyncStorage.setItem("travelReimbutsementUserId", Id);
 			await AsyncStorage.setItem("travelReimbutsementUserPwd", pwd);
 
 			navigation.replace("Home");
 		} catch (err) {
+			console.log("로그인 실패:", err.response?.data || err.message);
 			alert(err.response?.data?.message || "로그인 실패");
 		}
 	};
 
-	/** 자동 로그인 확인 중이면 로딩 */
+	/* 🔹 자동 로그인 체크 중 */
 	if (checkingAutoLogin) {
 		return (
-			<SafeAreaView edges={['bottom', 'top']} style={styles.loadingContainer}>
-				<ActivityIndicator size="large" color="#215294" />
+			<SafeAreaView style={styles.loadingContainer}>
+				<ActivityIndicator size="large" color={colors.point} />
 			</SafeAreaView>
 		);
 	}
 
 	return (
 		<SafeAreaProvider>
-			<SafeAreaView edges={['bottom', 'top']} style={styles.container}>
+			<SafeAreaView style={styles.container}>
 				<KeyboardAvoidingView
 					behavior={Platform.OS === "ios" ? "padding" : "height"}
 					style={styles.container}
 				>
-					{/* 헤더 */}
 					<View style={styles.header}>
 						<Text style={styles.logo}>✈️ Travel Reimbursement</Text>
 						<Text style={styles.subText}>여행을 더 쉽게 기록하세요</Text>
 					</View>
 
-					{/* 로그인 카드 */}
 					<View style={styles.card}>
 						<Text style={styles.label}>아이디</Text>
 						<TextInput
-							placeholder="아이디를 입력하세요"
 							value={Id}
 							onChangeText={setId}
 							style={styles.input}
@@ -115,32 +120,31 @@ export default function Login() {
 
 						<Text style={styles.label}>비밀번호</Text>
 						<TextInput
-							placeholder="비밀번호를 입력하세요"
 							value={pwd}
 							onChangeText={setPwd}
 							style={styles.input}
-							secureTextEntry
 						/>
-
-						<Pressable style={styles.loginBtn}
-							onPress={() => {
-								navigation.navigate("Signup");
-							}}
-						>
-							<Text style={styles.loginText}>회원가입</Text>
-						</Pressable>
 
 						<Pressable style={styles.loginBtn} onPress={handleLogin}>
 							<Text style={styles.loginText}>로그인</Text>
 						</Pressable>
+
+						<Pressable
+							style={styles.moveBtn}
+							onPress={() => navigation.replace("Signup")}
+						>
+							<Text style={styles.moveText}>회원가입 화면으로</Text>
+						</Pressable>
 					</View>
+
+					<Pressable style={styles.logoutBtn} onPress={logout}>
+						<Text style={styles.logoutText}>로그아웃</Text>
+					</Pressable>
 				</KeyboardAvoidingView>
 			</SafeAreaView>
 		</SafeAreaProvider>
 	);
-};
-
-
+}
 
 const styles = StyleSheet.create({
 	loadingContainer: {
@@ -151,7 +155,6 @@ const styles = StyleSheet.create({
 	},
 	container: {
 		flex: 1,
-		marginTop: 30,
 		backgroundColor: "#F6F7FB",
 	},
 	header: {
@@ -162,7 +165,6 @@ const styles = StyleSheet.create({
 		fontSize: 28,
 		fontWeight: "bold",
 		color: colors.point,
-		marginBottom: 6,
 	},
 	subText: {
 		fontSize: 14,
@@ -173,27 +175,20 @@ const styles = StyleSheet.create({
 		marginHorizontal: 30,
 		padding: 24,
 		borderRadius: 16,
-		shadowColor: "#000",
-		shadowOpacity: 0.1,
-		shadowRadius: 8,
 		elevation: 4,
 	},
 	label: {
 		fontSize: 14,
 		marginBottom: 6,
-		color: "#333",
 	},
 	input: {
 		borderWidth: 1,
 		borderColor: "#ddd",
 		borderRadius: 10,
-		paddingHorizontal: 14,
-		paddingVertical: Platform.OS === "ios" ? 14 : 10,
+		padding: 12,
 		marginBottom: 16,
-		fontSize: 15,
 	},
 	loginBtn: {
-		marginTop: 10,
 		backgroundColor: colors.point,
 		paddingVertical: 14,
 		borderRadius: 12,
@@ -203,5 +198,12 @@ const styles = StyleSheet.create({
 		color: "white",
 		fontSize: 16,
 		fontWeight: "bold",
+	},
+	moveBtn: {
+		marginTop: 10,
+		alignItems: "center",
+	},
+	moveText: {
+		textDecorationLine: "underline",
 	},
 });

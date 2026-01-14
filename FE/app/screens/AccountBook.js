@@ -11,6 +11,7 @@ import { styles } from "../component/AccountBook/styles";
 import ExpenseCard from "../component/AccountBook/ExpenseCard";
 import { FormatDateKST } from '../utils/FormatDateKST';
 import ExpenseDetail from "./ExpenseDetail";
+import Exchange from "../component/AccountBook/Exchange";
 
 const AccountBook = ({ route, navigation }) => {
     const [loading, setLoading] = useState(true);
@@ -109,6 +110,8 @@ const AccountBook = ({ route, navigation }) => {
                             >
                                 <Text style={styles.addButtonText}>+ 사용 내역 추가하기</Text>
                             </Pressable>
+
+                            <Exchange />
 
                             {/* 요약 카드 */}
                             <SummaryCard totalExpense={totalExpense} avgExpense={avgExpense} />

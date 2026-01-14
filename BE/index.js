@@ -3,6 +3,7 @@ import mysql from "mysql2/promise"; // promise 버전으로 변경
 import cors from "cors";
 import dotenv from "dotenv"; import multer from "multer";
 import path from "path";
+import pool from "./pool";
 
 
 // 영수증 업로드 설정
@@ -29,17 +30,6 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// MySQL 연결
-const db = await mysql.createConnection({
-	host: process.env.DB_HOST,
-	user: process.env.DB_USER,
-	password: process.env.DB_PASSWORD,
-	database: process.env.DB_NAME,
-	port: 3306
-});
-
-
-console.log("✅ MySQL 연결 성공");
 
 
 // ------------------------
@@ -54,10 +44,13 @@ app.get("/", (req, res) => {
 // 로그인 API
 // ------------------------
 app.post("/login", async (req, res) => {
+	const conn = await pool.getConnection();
+
 	const { Id, password } = req.body;
 	console.log(Id, password);
+
 	try {
-		const [results] = await db.query(
+		const [results] = await conn.query(
 			"SELECT * FROM users WHERE name = ? AND password = ?",
 			[Id, password]
 		);
@@ -76,11 +69,13 @@ app.post("/login", async (req, res) => {
 // 회원가입 API
 // ------------------------
 app.post("/signup", async (req, res) => {
+	const conn = await pool.getConnection();
+
 	const { Id, password } = req.body;
 
 	try {
 		// 아이디 중복 체크
-		const [exists] = await db.query(
+		const [exists] = await conn.query(
 			"SELECT * FROM users WHERE name = ?",
 			[Id]
 		);
@@ -92,7 +87,7 @@ app.post("/signup", async (req, res) => {
 		}
 
 		// 회원가입
-		await db.query(
+		await conn.query(
 			"INSERT INTO users (name, password) VALUES (?, ?)",
 			[Id, password]
 		);
@@ -445,14 +440,14 @@ app.put(
 			keep_receipts,
 		} = req.body;
 
-		
+
 		console.log("========== [EXPENSE UPDATE START] ==========");
 		console.log("expenseId:", expenseId);
 		console.log("shares(raw):", shares);
 		console.log("keep_receipts(raw):", keep_receipts);
 		console.log("memo:", memo);
 		console.log("files:", req.files?.length);
-		
+
 		console.log(paid_by,
 			amount,
 			description,
@@ -461,7 +456,7 @@ app.put(
 			shares,
 			created_at,
 			keep_receipts);
-			
+
 		const parsedShares =
 			typeof shares === "string" ? JSON.parse(shares) : shares;
 

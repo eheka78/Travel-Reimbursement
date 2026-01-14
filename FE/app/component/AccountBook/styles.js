@@ -121,16 +121,28 @@ export const styles = StyleSheet.create({
 		fontWeight: "800",
 		color: colors.point2,
 	},
+	
+	metaRow: {
+		flexDirection: "row",
+		alignItems: "center",
+		marginBottom: 8,
+	},
 	cardMeta: {
 		fontSize: 12,
 		color: "#666",
-		marginBottom: 8,
 	},
+	dot: {
+		marginHorizontal: 6,
+		color: "#bbb",
+		fontSize: 12,
+	},
+
 
 	shareBox: {
 		flexDirection: "row",
 		flexWrap: "wrap",
 		gap: 6,
+		marginTop: 3,
 	},
 	shareChip: {
 		backgroundColor: colors.back,
@@ -139,7 +151,7 @@ export const styles = StyleSheet.create({
 		borderRadius: 999,
 	},
 	shareChipText: {
-		fontSize: 12,
+		fontSize: 11,
 		fontWeight: "600",
 		color: colors.point,
 	},

@@ -77,6 +77,7 @@ export default function AddTrip({ navigation }) {
 
                         <TextInput
                             placeholder="여행 이름"
+                            placeholderTextColor="#999"
                             style={styles.input}
                             value={title}
                             onChangeText={setTitle}
@@ -119,6 +120,7 @@ export default function AddTrip({ navigation }) {
 
                         <TextInput
                             placeholder="여행 이름 입력"
+                            placeholderTextColor="#999"
                             style={styles.input}
                             value={enterTrip}
                             onChangeText={setEnterTrip}

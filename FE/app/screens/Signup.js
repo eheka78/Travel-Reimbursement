@@ -68,6 +68,7 @@ export default function Signup() {
 						<Text style={styles.label}>아이디(닉네임)</Text>
 						<TextInput
 							placeholder="아이디를 입력하세요"
+							placeholderTextColor="#999"
 							value={Id}
 							onChangeText={setId}
 							style={styles.input}
@@ -77,6 +78,7 @@ export default function Signup() {
 						<Text style={styles.label}>비밀번호</Text>
 						<TextInput
 							placeholder="비밀번호를 입력하세요"
+							placeholderTextColor="#999"
 							value={pwd}
 							onChangeText={setPwd}
 							style={styles.input}
@@ -85,6 +87,7 @@ export default function Signup() {
 						<Text style={styles.label}>비밀번호 확인</Text>
 						<TextInput
 							placeholder="비밀번호를 다시 입력하세요"
+							placeholderTextColor="#999"
 							value={confirmPwd}
 							onChangeText={setConfirmPwd}
 							style={styles.input}

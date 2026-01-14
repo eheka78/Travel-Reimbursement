@@ -199,6 +199,7 @@ export default function AddExpense({ route, navigation }) {
 							onChangeText={setAmount}
 							keyboardType="numeric"
 							placeholder="금액 입력"
+							placeholderTextColor="#999"
 						/>
 					</View>
 
@@ -210,6 +211,7 @@ export default function AddExpense({ route, navigation }) {
 							value={description}
 							onChangeText={setDescription}
 							placeholder="사용 내역"
+							placeholderTextColor="#999"
 						/>
 					</View>
 
@@ -217,9 +219,18 @@ export default function AddExpense({ route, navigation }) {
 					<View style={styles.card}>
 						<Text style={styles.label}>카테고리</Text>
 						<View style={styles.pickerBox}>
-							<Picker selectedValue={category} onValueChange={setCategory}>
+							<Picker
+								selectedValue={category}
+								onValueChange={setCategory}
+								style={{ color: "#000" }}
+							>
 								{CATEGORY.map((cat, index) => (
-									<Picker.Item key={index} label={cat} value={cat} />
+									<Picker.Item
+										key={index}
+										label={cat}
+										value={cat}
+										color="#000"
+									/>
 								))}
 							</Picker>
 						</View>
@@ -232,9 +243,10 @@ export default function AddExpense({ route, navigation }) {
 							<Picker
 								selectedValue={selectedPaidBy}
 								onValueChange={setSelectedPaidBy}
+								style={{ color: "#000" }}
 							>
 								{members.map((m) => (
-									<Picker.Item key={m.id} label={m.name} value={m.id} />
+									<Picker.Item key={m.id} label={m.name} value={m.id} color="#000" />
 								))}
 							</Picker>
 						</View>
@@ -244,9 +256,13 @@ export default function AddExpense({ route, navigation }) {
 					<View style={styles.card}>
 						<Text style={styles.label}>분배 방식</Text>
 						<View style={styles.pickerBox}>
-							<Picker selectedValue={splitMode} onValueChange={setSplitMode}>
-								<Picker.Item label="엔빵" value="엔빵" />
-								<Picker.Item label="직접 입력" value="직접 입력" />
+							<Picker
+								selectedValue={splitMode}
+								onValueChange={setSplitMode}
+								style={{ color: "#000" }}
+							>
+								<Picker.Item label="엔빵" value="엔빵" color="#000" />
+								<Picker.Item label="직접 입력" value="직접 입력" color="#000" />
 							</Picker>
 						</View>
 
@@ -305,6 +321,7 @@ export default function AddExpense({ route, navigation }) {
 							value={memo}
 							onChangeText={setMemo}
 							placeholder="메모"
+							placeholderTextColor="#999"
 						/>
 					</View>
 

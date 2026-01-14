@@ -71,6 +71,7 @@ export default function EditTripSetting({ route, navigation }) {
                                 value={title}
                                 onChangeText={setTitle}
                                 placeholder="여행 이름을 입력하세요"
+                                placeholderTextColor="#999"
                             />
 
                             <Text style={styles.label}>여행 설명</Text>
@@ -79,6 +80,7 @@ export default function EditTripSetting({ route, navigation }) {
                                 value={description}
                                 onChangeText={setDescription}
                                 placeholder="여행 설명을 입력하세요"
+                                placeholderTextColor="#999"
                                 multiline
                                 numberOfLines={8}
                                 textAlignVertical="top"

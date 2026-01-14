@@ -267,12 +267,14 @@ export default function EditExpense({ route, navigation }) {
 							<Picker
 								selectedValue={category}
 								onValueChange={setCategory}
+								style={{ color: "#000" }}
 							>
 								{CATEGORY.map((c) => (
 									<Picker.Item
 										key={c}
 										label={c}
 										value={c}
+										color="#000"
 									/>
 								))}
 							</Picker>
@@ -286,12 +288,14 @@ export default function EditExpense({ route, navigation }) {
 							<Picker
 								selectedValue={selectedPaidBy}
 								onValueChange={setSelectedPaidBy}
+								style={{ color: "#000" }}
 							>
 								{members.map((m) => (
 									<Picker.Item
 										key={m.id}
 										label={m.name}
 										value={m.id}
+										color="#000"
 									/>
 								))}
 							</Picker>
@@ -305,9 +309,10 @@ export default function EditExpense({ route, navigation }) {
 							<Picker
 								selectedValue={splitMode}
 								onValueChange={setSplitMode}
+								style={{ color: "#000" }}
 							>
-								<Picker.Item label="엔빵" value="엔빵" />
-								<Picker.Item label="직접 입력" value="직접 입력" />
+								<Picker.Item label="엔빵" value="엔빵" color="#000" />
+								<Picker.Item label="직접 입력" value="직접 입력" color="#000" />
 							</Picker>
 						</View>
 

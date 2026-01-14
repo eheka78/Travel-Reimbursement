@@ -8,6 +8,7 @@ import {
 	TextInput,
 	View,
 	ActivityIndicator,
+	Alert,
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import api from "../../api";
@@ -77,6 +78,8 @@ export default function Login() {
 		try {
 			await AsyncStorage.removeItem("travelReimbutsementUserId");
 			await AsyncStorage.removeItem("travelReimbutsementUserPwd");
+
+			Alert.alert("로그아웃 성공");
 		} catch (e) {
 			console.error("로그아웃 실패:", e);
 		}
@@ -115,7 +118,7 @@ export default function Login() {
 
 	return (
 		<SafeAreaProvider>
-			<SafeAreaView style={styles.container}>
+			<SafeAreaView edges={["bottom", "top"]} style={styles.container}>
 				<KeyboardAvoidingView
 					behavior={Platform.OS === "ios" ? "padding" : "height"}
 					style={styles.container}
@@ -128,6 +131,8 @@ export default function Login() {
 					<View style={styles.card}>
 						<Text style={styles.label}>아이디</Text>
 						<TextInput
+							placeholder="아이디를 입력하세요"
+							placeholderTextColor="#999"
 							value={Id}
 							onChangeText={setId}
 							style={styles.input}
@@ -136,6 +141,8 @@ export default function Login() {
 
 						<Text style={styles.label}>비밀번호</Text>
 						<TextInput
+							placeholder="아이디를 입력하세요"
+							placeholderTextColor="#999"
 							value={pwd}
 							onChangeText={setPwd}
 							style={styles.input}
@@ -154,8 +161,9 @@ export default function Login() {
 					</View>
 
 					<Pressable style={styles.logoutBtn} onPress={logout}>
-						<Text style={styles.logoutText}>로그아웃</Text>
+						<Text style={styles.logoutText}>if error: 로그아웃</Text>
 					</Pressable>
+
 				</KeyboardAvoidingView>
 			</SafeAreaView>
 		</SafeAreaProvider>
@@ -171,6 +179,7 @@ const styles = StyleSheet.create({
 	},
 	container: {
 		flex: 1,
+		marginTop: 30,
 		backgroundColor: "#F6F7FB",
 	},
 	header: {
@@ -215,11 +224,24 @@ const styles = StyleSheet.create({
 		fontSize: 16,
 		fontWeight: "bold",
 	},
+
 	moveBtn: {
 		marginTop: 10,
 		alignItems: "center",
 	},
 	moveText: {
+		textDecorationLine: "underline",
+	},
+
+	logoutBtn: {
+		alignSelf: "center",
+		marginTop: 16,
+		paddingVertical: 6,
+		paddingHorizontal: 12,
+	},
+	logoutText: {
+		fontSize: 13,
+		color: "#999",
 		textDecorationLine: "underline",
 	},
 });

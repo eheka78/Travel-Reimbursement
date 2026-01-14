@@ -54,6 +54,7 @@ export default function Exchange() {
                             setUsd(text);
                         }}
                         placeholder="🇺🇸"
+                        placeholderTextColor="#999"
                     />
                 </View>
 
@@ -74,6 +75,7 @@ export default function Exchange() {
                             setKrw(text);
                         }}
                         placeholder="🇰🇷"
+                        placeholderTextColor="#999"
                     />
                 </View>
             </View>

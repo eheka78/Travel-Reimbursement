@@ -50,8 +50,9 @@ export const TripDeleteButton = ({ trip, navigation }) => {
                     <View style={styles.modalContainer}>
                         <Text style={styles.modalTitle}>여행 제목을 입력해주세요</Text>
                         <TextInput
-                            style={styles.input}
                             placeholder="여행 제목"
+							placeholderTextColor="#999"
+                            style={styles.input}
                             value={inputTitle}
                             onChangeText={setInputTitle}
                         />

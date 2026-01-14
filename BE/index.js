@@ -44,13 +44,12 @@ app.get("/", (req, res) => {
 // ------------------------
 app.post("/login", async (req, res) => {
 	console.log(req.body);
-	const conn = await pool.getConnection();
 
 	const { Id, password } = req.body;
 	console.log(Id, password);
 
 	try {
-		const [results] = await conn.query(
+		const [results] = await pool.query(
 			"SELECT * FROM users WHERE name = ? AND password = ?",
 			[Id, password]
 		);
@@ -69,13 +68,11 @@ app.post("/login", async (req, res) => {
 // 회원가입 API
 // ------------------------
 app.post("/signup", async (req, res) => {
-	const conn = await pool.getConnection();
-
 	const { Id, password } = req.body;
 
 	try {
 		// 아이디 중복 체크
-		const [exists] = await conn.query(
+		const [exists] = await pool.query(
 			"SELECT * FROM users WHERE name = ?",
 			[Id]
 		);
@@ -87,7 +84,7 @@ app.post("/signup", async (req, res) => {
 		}
 
 		// 회원가입
-		await conn.query(
+		await pool.query(
 			"INSERT INTO users (name, password) VALUES (?, ?)",
 			[Id, password]
 		);
@@ -103,21 +100,19 @@ app.post("/signup", async (req, res) => {
 // 여행 등록 API
 // ------------------------
 app.post("/trips", async (req, res) => {
-	const conn = await pool.getConnection();
-
 	const { title, start_date, end_date, user_id } = req.body;
 	if (!title) return res.status(400).json({ message: "여행 제목은 필수입니다." });
 	console.log(title, start_date, end_date, user_id);
 
 	try {
-		const [result] = await conn.query(
+		const [result] = await pool.query(
 			"INSERT INTO trips (title, start_date, end_date) VALUES (?, ?, ?)",
 			[title, start_date, end_date]
 		);
 		const tripId = result.insertId;
 		console.log("tripId: " + tripId);
 
-		await conn.query(
+		await pool.query(
 			"INSERT INTO trip_members (trip_id, user_id, role) VALUES (?, ?, 'owner')",
 			[tripId, user_id]
 		);
@@ -136,8 +131,6 @@ app.post("/trips", async (req, res) => {
 // 여행 정보 수정 API
 // ------------------------
 app.put("/trips/:tripId", async (req, res) => {
-	const conn = await pool.getConnection();
-
 	const { tripId } = req.params;
 	const { title, start_date, end_date, description } = req.body;
 
@@ -148,7 +141,7 @@ app.put("/trips/:tripId", async (req, res) => {
 	}
 
 	try {
-		const [result] = await conn.query(
+		const [result] = await pool.query(
 			`
             UPDATE trips
             SET 
@@ -181,8 +174,6 @@ app.put("/trips/:tripId", async (req, res) => {
 // ------------------------
 // DELETE /trips/:tripId
 app.delete("/trips/:tripId", async (req, res) => {
-	const conn = await pool.getConnection();
-
 	const { tripId } = req.params;
 	const { title } = req.body;
 
@@ -192,7 +183,7 @@ app.delete("/trips/:tripId", async (req, res) => {
 
 	try {
 		// 1️⃣ 삭제할 여행 확인
-		const [tripCheck] = await conn.query(
+		const [tripCheck] = await pool.query(
 			`SELECT * FROM trips WHERE id = ? AND title = ?`,
 			[tripId, title]
 		);
@@ -201,7 +192,7 @@ app.delete("/trips/:tripId", async (req, res) => {
 		}
 
 		// 2️⃣ 해당 여행의 expenses 찾기
-		const [expenses] = await conn.query(
+		const [expenses] = await pool.query(
 			`SELECT id FROM expenses WHERE trip_id = ?`,
 			[tripId]
 		);
@@ -209,26 +200,26 @@ app.delete("/trips/:tripId", async (req, res) => {
 
 		// 3️⃣ expense_shares 삭제
 		if (expenseIds.length > 0) {
-			await conn.query(
+			await pool.query(
 				`DELETE FROM expense_shares WHERE expense_id IN (?)`,
 				[expenseIds]
 			);
 		}
 
 		// 4️⃣ expenses 삭제
-		await conn.query(
+		await pool.query(
 			`DELETE FROM expenses WHERE trip_id = ?`,
 			[tripId]
 		);
 
 		// 5️⃣ trip_members 삭제
-		await conn.query(
+		await pool.query(
 			`DELETE FROM trip_members WHERE trip_id = ?`,
 			[tripId]
 		);
 
 		// 6️⃣ trips 삭제
-		await conn.query(
+		await pool.query(
 			`DELETE FROM trips WHERE id = ?`,
 			[tripId]
 		);
@@ -249,18 +240,16 @@ app.delete("/trips/:tripId", async (req, res) => {
 // 기존 여행 참여
 // ------------------------
 app.post("/trips/join", async (req, res) => {
-	const conn = await pool.getConnection();
-
 	const { trip_name, user_id } = req.body;
 	if (!trip_name || !user_id) return res.status(400).json({ message: "trip_name과 user_id가 필요합니다." });
 
 	try {
-		const [trips] = await conn.query("SELECT id FROM trips WHERE title = ?", [trip_name]);
+		const [trips] = await pool.query("SELECT id FROM trips WHERE title = ?", [trip_name]);
 		if (trips.length === 0) return res.status(404).json({ message: "해당 여행을 찾을 수 없습니다." });
 
 		const tripId = trips[0].id;
 
-		await conn.query(
+		await pool.query(
 			"INSERT INTO trip_members (trip_id, user_id) VALUES (?, ?)",
 			[tripId, user_id]
 		);
@@ -279,12 +268,10 @@ app.post("/trips/join", async (req, res) => {
 // 내 여행 목록 조회
 // ------------------------
 app.get("/my-trips/:userId", async (req, res) => {
-	const conn = await pool.getConnection();
-
 	const userId = req.params.userId;
 
 	try {
-		const [results] = await conn.query(
+		const [results] = await pool.query(
 			`SELECT *
        FROM trips t
        JOIN trip_members tm ON t.id = tm.trip_id
@@ -303,12 +290,10 @@ app.get("/my-trips/:userId", async (req, res) => {
 // 여행 멤버 조회
 // ------------------------
 app.get("/trips/:tripId/members", async (req, res) => {
-	const conn = await pool.getConnection();
-
 	const { tripId } = req.params;
 
 	try {
-		const [results] = await conn.query(
+		const [results] = await pool.query(
 			`SELECT u.id, u.name, tm.role, tm.joined_at
        FROM trip_members tm
        JOIN users u ON tm.user_id = u.id
@@ -326,8 +311,6 @@ app.get("/trips/:tripId/members", async (req, res) => {
 // 소비 내역 저장 API (+ 영수증)
 // ------------------------
 app.post("/trips/:tripId/expenses", upload.array("receipts", 5), async (req, res) => {
-	const conn = await pool.getConnection();
-
 	console.log("==== [EXPENSE API START] ====");
 
 	const { tripId } = req.params;
@@ -352,7 +335,7 @@ app.post("/trips/:tripId/expenses", upload.array("receipts", 5), async (req, res
 	}
 
 	try {
-		await conn.beginTransaction();
+		await pool.beginTransaction();
 		console.log("🔐 TRANSACTION BEGIN");
 
 		// ⭐ shares JSON 파싱
@@ -360,7 +343,7 @@ app.post("/trips/:tripId/expenses", upload.array("receipts", 5), async (req, res
 		console.log("📊 PARSED SHARES:", shares);
 
 		// 1️⃣ expenses 저장
-		const [expenseResult] = await conn.query(
+		const [expenseResult] = await pool.query(
 			`
 				INSERT INTO expenses
 				(trip_id, paid_by, amount, description, memo, category, created_at)
@@ -375,7 +358,7 @@ app.post("/trips/:tripId/expenses", upload.array("receipts", 5), async (req, res
 		// 2️⃣ shares 저장
 		for (const s of shares) {
 			console.log("➗ SHARE INSERT:", s);
-			await conn.query(
+			await pool.query(
 				`
 					INSERT INTO expense_shares
 					(expense_id, user_id, share)
@@ -402,7 +385,7 @@ app.post("/trips/:tripId/expenses", upload.array("receipts", 5), async (req, res
 				];
 			});
 
-			await conn.query(
+			await pool.query(
 				`
 					INSERT INTO expense_receipts (expense_id, image_url)
 					VALUES ?
@@ -411,7 +394,7 @@ app.post("/trips/:tripId/expenses", upload.array("receipts", 5), async (req, res
 			);
 		}
 
-		await conn.commit();
+		await pool.commit();
 		console.log("✅ TRANSACTION COMMIT");
 
 		res.status(201).json({
@@ -419,7 +402,7 @@ app.post("/trips/:tripId/expenses", upload.array("receipts", 5), async (req, res
 			expenseId,
 		});
 	} catch (err) {
-		await conn.rollback();
+		await pool.rollback();
 		console.error("🔥 ERROR:", err);
 		res.status(500).json({ error: err.message });
 	}
@@ -437,8 +420,6 @@ app.post("/trips/:tripId/expenses", upload.array("receipts", 5), async (req, res
 // ------------------------
 // PUT /trips/:tripId/expenses/:expenseId
 app.put("/trips/:tripId/expenses/:expenseId", upload.array("receipts", 5), async (req, res) => {
-	const conn = await pool.getConnection();
-
 	const { expenseId } = req.params;
 	const {
 		paid_by,
@@ -477,11 +458,11 @@ app.put("/trips/:tripId/expenses/:expenseId", upload.array("receipts", 5), async
 			: keep_receipts || [];
 
 	try {
-		await conn.beginTransaction();
+		await pool.beginTransaction();
 		console.log("▶ DB TRANSACTION BEGIN");
 
 		// expenses
-		await conn.query(
+		await pool.query(
 			`UPDATE expenses
 				SET paid_by=?, amount=?, description=?, memo=?, category=?, created_at=?
 				WHERE id=?`,
@@ -489,7 +470,7 @@ app.put("/trips/:tripId/expenses/:expenseId", upload.array("receipts", 5), async
 		);
 
 		// ❗ 기존 receipts 중 제거된 것 삭제
-		await conn.query(
+		await pool.query(
 			`DELETE FROM expense_receipts
          		WHERE expense_id=? AND image_url NOT IN (?)`,
 			[expenseId, keep.length ? keep : [""]]
@@ -502,32 +483,32 @@ app.put("/trips/:tripId/expenses/:expenseId", upload.array("receipts", 5), async
 				`/uploads/receipts/${f.filename}`,
 			]);
 
-			await conn.query(
+			await pool.query(
 				`INSERT INTO expense_receipts (expense_id, image_url) VALUES ?`,
 				[values]
 			);
 		}
 
 		// shares 재설정
-		await conn.query(
+		await pool.query(
 			`DELETE FROM expense_shares WHERE expense_id=?`,
 			[expenseId]
 		);
 
 		for (const s of parsedShares) {
-			await conn.query(
+			await pool.query(
 				`INSERT INTO expense_shares (expense_id, user_id, share)
            VALUES (?, ?, ?)`,
 				[expenseId, s.user_id, s.share]
 			);
 		}
 
-		await conn.commit();
+		await pool.commit();
 		console.log("▶ DB COMMIT SUCCESS");
 		res.json({ message: "수정 완료" });
 	} catch (err) {
 		console.error("❌ EXPENSE UPDATE ERROR:", err);
-		await conn.rollback();
+		await pool.rollback();
 		res.status(500).json({ message: "수정 실패" });
 	}
 }
@@ -540,13 +521,11 @@ app.put("/trips/:tripId/expenses/:expenseId", upload.array("receipts", 5), async
 // 여행 멤버별 대시보드 API (총액 + 차액)
 // ------------------------
 app.get("/trips/:tripId/dashboard", async (req, res) => {
-	const conn = await pool.getConnection();
-
 	const { tripId } = req.params;
 
 	try {
 		// 각 멤버별 총액 계산
-		const [rows] = await conn.query(
+		const [rows] = await pool.query(
 			`SELECT
 			u.id AS user_id,
 			u.name,
@@ -585,8 +564,6 @@ app.get("/trips/:tripId/dashboard", async (req, res) => {
 // 여행 지출 세부 내역 전체 조회 API (+ 영수증)
 // ------------------------
 app.get("/trips/:tripId/expenses", async (req, res) => {
-	const conn = await pool.getConnection();
-
 	const { tripId } = req.params;
 
 	try {
@@ -594,7 +571,7 @@ app.get("/trips/:tripId/expenses", async (req, res) => {
 		console.log("tripId:", tripId);
 
 		// 1️⃣ 여행 지출 목록
-		const [expenses] = await conn.query(
+		const [expenses] = await pool.query(
 			`
 			SELECT 
 				e.id AS expense_id,
@@ -623,7 +600,7 @@ app.get("/trips/:tripId/expenses", async (req, res) => {
 		const expenseIds = expenses.map(e => e.expense_id);
 
 		// 2️⃣ 각 지출별 참여자 부담액
-		const [shares] = await conn.query(
+		const [shares] = await pool.query(
 			`
 			SELECT 
 				es.expense_id,
@@ -641,7 +618,7 @@ app.get("/trips/:tripId/expenses", async (req, res) => {
 		console.log("➗ Shares count:", shares.length);
 
 		// 3️⃣ 각 지출별 영수증 이미지
-		const [receipts] = await conn.query(
+		const [receipts] = await pool.query(
 			`
 			SELECT
 				er.expense_id,
@@ -682,8 +659,6 @@ app.get("/trips/:tripId/expenses", async (req, res) => {
 // 지출 내역 저장 API
 // ------------------------
 app.post("/trips/:trip_id/expenses", async (req, res) => {
-	const conn = await pool.getConnection();
-
 	try {
 		const { trip_id } = req.params;
 		const { paid_by, amount, description, category, shares } = req.body;
@@ -693,7 +668,7 @@ app.post("/trips/:trip_id/expenses", async (req, res) => {
 		}
 
 		// 1️⃣ expenses 저장
-		const [expenseResult] = await conn.query(
+		const [expenseResult] = await pool.query(
 			`INSERT INTO expenses (trip_id, paid_by, amount, description, category)
        VALUES (?, ?, ?, ?, ?)`,
 			[trip_id, paid_by, amount, description, category]
@@ -703,7 +678,7 @@ app.post("/trips/:trip_id/expenses", async (req, res) => {
 
 		// 2️⃣ shares 저장
 		for (const share of shares) {
-			await conn.query(
+			await pool.query(
 				`INSERT INTO expense_shares (expense_id, user_id, share)
          VALUES (?, ?, ?)`,
 				[expenseId, share.user_id, share.share]
@@ -721,19 +696,17 @@ app.post("/trips/:trip_id/expenses", async (req, res) => {
 
 // 지출 삭제
 app.delete('/trips/expenses/:expense_id', async (req, res) => {
-	const conn = await pool.getConnection();
-
 	const { expense_id } = req.params;
 
 	try {
 		// 1. expense_shares 삭제
-		await conn.query('DELETE FROM expense_shares WHERE expense_id = ?', [expense_id]);
+		await pool.query('DELETE FROM expense_shares WHERE expense_id = ?', [expense_id]);
 
 		// 2. expense_receipts 삭제
-		await conn.query('DELETE FROM expense_receipts WHERE expense_id = ?', [expense_id]);
+		await pool.query('DELETE FROM expense_receipts WHERE expense_id = ?', [expense_id]);
 
 		// 3. expenses 삭제
-		const [result] = await conn.query(
+		const [result] = await pool.query(
 			'DELETE FROM expenses WHERE id = ?',
 			[expense_id]
 		);
@@ -755,12 +728,10 @@ app.delete('/trips/expenses/:expense_id', async (req, res) => {
 // 이미지 컬렉션 조회 API
 // ------------------------
 app.get("/trips/:tripId/receipts", async (req, res) => {
-	const conn = await pool.getConnection();
-
 	const { tripId } = req.params;
 
 	try {
-		const [rows] = await conn.query(
+		const [rows] = await pool.query(
 			`
             SELECT
                 r.id AS receipt_id,

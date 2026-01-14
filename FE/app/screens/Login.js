@@ -46,6 +46,7 @@ export default function Login() {
 
 				console.log("$$$$$$$2");
 				const res2 = await api.get("/");
+				console.log(res2.data);
 				console.log("$$$$$$$3");
 
 				const res = await api.post("/login", {

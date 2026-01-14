@@ -10,7 +10,6 @@ import DateFilter from '../component/AccountBook/DateFilter';
 import { styles } from "../component/AccountBook/styles";
 import ExpenseCard from "../component/AccountBook/ExpenseCard";
 import { FormatDateKST } from '../utils/FormatDateKST';
-import ExpenseDetail from "./ExpenseDetail";
 import Exchange from "../component/AccountBook/Exchange";
 
 const AccountBook = ({ route, navigation }) => {
@@ -46,6 +45,9 @@ const AccountBook = ({ route, navigation }) => {
 
     useFocusEffect(
         useCallback(() => {
+            if (!tripId) {
+                return;
+            }
             console.log(tripId);
             fetchTripAccountData();
         }, [tripId])

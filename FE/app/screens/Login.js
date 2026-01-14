@@ -45,13 +45,15 @@ export default function Login() {
 				}
 
 				console.log("$$$$$$$2");
+				const res2 = await api.get("/");
+				console.log("$$$$$$$3");
 
 				const res = await api.post("/login", {
 					Id: savedId,
 					password: savedPwd,
 				});
 
-				console.log("$$$$$$$3");
+				console.log("$$$$$$$4");
 				console.log(res.data);
 
 				setIsLoggedIn(true);

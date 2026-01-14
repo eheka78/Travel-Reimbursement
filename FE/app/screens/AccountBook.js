@@ -46,6 +46,7 @@ const AccountBook = ({ route, navigation }) => {
 
     useFocusEffect(
         useCallback(() => {
+            console.log(tripId);
             fetchTripAccountData();
         }, [tripId])
     );

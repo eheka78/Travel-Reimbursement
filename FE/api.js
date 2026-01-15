@@ -2,7 +2,7 @@
 import axios from "axios";
 
 const api = axios.create({
-	baseURL: "http://3.104.119.62:3000", // Node.js 서버 주소
+	baseURL: "https://plasticly-nonprohibitive-marge.ngrok-free.dev",
 	headers: {
 		"Content-Type": "application/json",
 	},
